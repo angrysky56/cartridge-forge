@@ -1,0 +1,21 @@
+{
+  "name": "cartridge-forge",
+  "version": "0.1.0",
+  "description": "AI-driven turn-based game generator using ECS architecture and declarative DSL cartridges",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "validate": "tsx src/cartridge/cli-validate.ts"
+  },
+  "dependencies": {
+    "expr-eval": "^2.0.2",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "tsx": "^4.19.4"
+  }
+}

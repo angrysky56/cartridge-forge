@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "title": "Abyssal Protocol",
+    "version": "0.1.0",
+    "description": "Navigate a derelict space station overrun by bio-organic horrors. Survive.",
+    "palette": {
+      "floor": "#0d1117",
+      "wall": "#21262d",
+      "wall_glyph": "#444c56",
+      "floor_glyph": "#1a1e24",
+      "bg": "#010409"
+    }
+  },
+  "components": {
+    "Position": { "x": "number", "y": "number" },
+    "Health": { "current": "number", "max": "number" },
+    "CombatStats": { "strength": "number", "armor": "number", "evasion": "number" },
+    "Renderable": { "glyph": "string", "color": "string", "layer": "number" },
+    "Faction": { "id": "string" },
+    "Description": { "name": "string", "text": "string" }
+  },
+  "blueprints": {
+    "player_mech": {
+      "Position": { "x": 0, "y": 0 },
+      "Health": { "current": 100, "max": 100 },
+      "CombatStats": { "strength": 15, "armor": 5, "evasion": 10 },
+      "Renderable": { "glyph": "@", "color": "#00ff88", "layer": 5 },
+      "Faction": { "id": "player" },
+      "Description": { "name": "MECH-7", "text": "Your salvage mech, battered but operational." }
+    },
+    "bio_crawler": {
+      "Position": { "x": 0, "y": 0 },
+      "Health": { "current": 20, "max": 20 },
+      "CombatStats": { "strength": 8, "armor": 0, "evasion": 30 },
+      "Renderable": { "glyph": "s", "color": "#ff4444", "layer": 3 },
+      "Faction": { "id": "alien_swarm" },
+      "Description": { "name": "Bio-Crawler", "text": "A skittering mass of chitin and tendon." }
+    },
+    "acid_spitter": {
+      "Position": { "x": 0, "y": 0 },
+      "Health": { "current": 15, "max": 15 },
+      "CombatStats": { "strength": 12, "armor": 2, "evasion": 5 },
+      "Renderable": { "glyph": "S", "color": "#44ff44", "layer": 3 },
+      "Faction": { "id": "alien_swarm" },
+      "Description": { "name": "Acid Spitter", "text": "Bloated and corrosive." }
+    },
+    "corpse": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "%", "color": "#666666", "layer": 1 },
+      "Description": { "name": "Remains", "text": "What's left." }
+    },
+    "health_pack": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "+", "color": "#00ffff", "layer": 2 },
+      "Description": { "name": "Repair Kit", "text": "Restores 25 hull integrity." }
+    }
+  },
+  "systems": {
+    "melee_attack": {
+      "listens_for": "ACTION_ATTACK",
+      "context": { "attacker": "event.source", "target": "event.target" },
+      "requires": [ "distance(attacker.Position, target.Position) == 1", "attacker.Faction.id != target.Faction.id" ],
+      "priority": 10,
+      "effects": [
+        { "type": "MUTATE", "target": "target.Health.current", "operation": "SUBTRACT", "value": "max(1, attacker.CombatStats.strength - target.CombatStats.armor)" },
+        { "type": "LOG_MESSAGE", "message": "{attacker.Description.name} strikes {target.Description.name} for {value} damage!" }
+      ],
+      "post_checks": [
+        { "if": "target.Health.current <= 0", "then": [
+            { "type": "LOG_MESSAGE", "message": "{target.Description.name} is destroyed!" },
+            { "type": "DESTROY_ENTITY", "target": "target" },
+            { "type": "SPAWN_ENTITY", "blueprint": "corpse", "at": "target.Position" }
+        ]}
+      ]
+    },
+    "acid_burn_apply": {
+      "listens_for": "ACTION_ATTACK",
+      "context": { "attacker": "event.source", "target": "event.target" },
+      "requires": [ "attacker.Description.name == 'Acid Spitter'" ],
+      "priority": 20,
+      "effects": [
+        { "type": "APPLY_TAG", "target": "target", "tag": "acid_burn", "duration": 3 },
+        { "type": "LOG_MESSAGE", "message": "{target.Description.name} is coated in acid!" }
+      ]
+    },
+    "acid_burn_tick": {
+      "listens_for": "TURN_END",
+      "context": { "entity": "event.source" },
+      "requires": [ "has_tag('entity', 'acid_burn')" ],
+      "priority": 50,
+      "effects": [
+        { "type": "MUTATE", "target": "entity.Health.current", "operation": "SUBTRACT", "value": "3" },
+        { "type": "LOG_MESSAGE", "message": "Acid burns {entity.Description.name} for 3 damage!" }
+      ],
+      "post_checks": [
+        { "if": "entity.Health.current <= 0", "then": [
+            { "type": "LOG_MESSAGE", "message": "{entity.Description.name} dissolves!" },
+            { "type": "DESTROY_ENTITY", "target": "entity" }
+        ]}
+      ]
+    }
+  },
+  "world_gen": {
+    "width": 60,
+    "height": 40,
+    "algorithm": "bsp_rooms",
+    "floor_glyph": ".",
+    "wall_glyph": "#",
+    "wall_density": 0.45,
+    "room_min_size": 5,
+    "room_max_size": 12,
+    "spawn_table": [
+      { "blueprint": "bio_crawler", "weight": 0.7, "max_per_level": 8 },
+      { "blueprint": "acid_spitter", "weight": 0.3, "max_per_level": 3 },
+      { "blueprint": "health_pack", "weight": 0.4, "max_per_level": 4 }
+    ]
+  },
+  "events": [ "ACTION_MOVE", "ACTION_ATTACK", "TURN_START", "TURN_END" ]
+}
