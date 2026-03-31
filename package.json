@@ -10,7 +10,7 @@
     "validate": "tsx src/cartridge/cli-validate.ts"
   },
   "dependencies": {
-    "expr-eval": "^2.0.2",
+    "expr-eval": "npm:expr-eval-fork@^3.0.3",
     "zod": "^3.24.4"
   },
   "devDependencies": {
