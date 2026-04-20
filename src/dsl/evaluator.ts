@@ -62,6 +62,7 @@ function roll(diceStr: string): number {
 export function buildScope(
   contextBindings: Record<string, Entity>,
   world: World,
+  externalModifiers?: Record<string, Record<string, number>>, // EntityId -> { "Health.max": 10 }
 ): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
 
@@ -69,10 +70,20 @@ export function buildScope(
     // Add entity-level fields
     scope[`${varName}__id`] = entity.id;
 
+    // Get external modifiers for this entity
+    const entityMods = externalModifiers?.[entity.id] || {};
+
     // Flatten all component data
     for (const [compName, compData] of entity.components) {
       for (const [field, value] of Object.entries(compData)) {
-        scope[`${varName}__${compName}__${field}`] = value;
+        const path = `${compName}.${field}`;
+        const modifier = entityMods[path] || 0;
+        
+        if (typeof value === 'number') {
+          scope[`${varName}__${compName}__${field}`] = value + modifier;
+        } else {
+          scope[`${varName}__${compName}__${field}`] = value;
+        }
       }
     }
   }

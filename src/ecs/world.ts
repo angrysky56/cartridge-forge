@@ -59,13 +59,26 @@ export class World {
       persistent: false, // Will be determined by components
     };
 
-    // Deep-clone each component from the blueprint
-    for (const [compName, compData] of Object.entries(template)) {
-      const cloned = structuredClone(compData);
-      // Apply overrides if provided
-      if (overrides?.[compName]) {
-        Object.assign(cloned, overrides[compName]);
+    // Combined list of component names from template and overrides
+    const allCompNames = new Set([
+      ...Object.keys(template),
+      ...Object.keys(overrides || {}),
+    ]);
+
+    for (const compName of allCompNames) {
+      const templateData = template[compName];
+      const overrideData = overrides?.[compName];
+
+      let cloned: ComponentData;
+      if (templateData) {
+        cloned = structuredClone(templateData);
+        if (overrideData) {
+          Object.assign(cloned, overrideData);
+        }
+      } else {
+        cloned = structuredClone(overrideData as ComponentData);
       }
+
       entity.components.set(compName, cloned);
 
       // If any component is persistent, the whole entity becomes persistent

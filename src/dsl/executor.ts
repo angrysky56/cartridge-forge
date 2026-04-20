@@ -10,6 +10,8 @@ import type { Entity } from '../ecs/types.js';
 import { World } from '../ecs/world.js';
 import type { GameSystem, Effect, ConditionalBlock } from '../cartridge/schema.js';
 import { buildScope, evaluate, evaluateCondition } from './evaluator.js';
+import type { GeneticsService } from '../runtime/genetics.js';
+import type { InventoryService } from '../runtime/inventory.js';
 
 /** Runtime event carrying source/target entity references */
 export interface GameEvent {
@@ -28,12 +30,21 @@ export class SystemExecutor {
   private systems: Array<{ name: string; def: GameSystem }> = [];
   private world: World;
   private logCallback: LogCallback;
+  private genetics?: GeneticsService;
+  private inventory?: InventoryService;
   /** Event queue for chained events (EMIT_EVENT effects) */
   private eventQueue: GameEvent[] = [];
 
-  constructor(world: World, logCallback: LogCallback) {
+  constructor(
+    world: World,
+    logCallback: LogCallback,
+    genetics?: GeneticsService,
+    inventory?: InventoryService,
+  ) {
     this.world = world;
     this.logCallback = logCallback;
+    this.genetics = genetics;
+    this.inventory = inventory;
   }
 
   /** Load systems from a cartridge and sort by priority */
@@ -79,8 +90,15 @@ export class SystemExecutor {
         }
       }
 
-      // Build evaluation scope from context
-      const scope = buildScope(contextBindings, this.world);
+      // Build evaluation scope from context, including equipment modifiers
+      const allModifiers: Record<string, Record<string, number>> = {};
+      if (this.inventory) {
+        for (const entity of Object.values(contextBindings)) {
+          allModifiers[entity.id] = this.inventory.getEquipmentModifiers(entity);
+        }
+      }
+
+      const scope = buildScope(contextBindings, this.world, allModifiers);
 
       // Check requires conditions
       if (def.requires) {
@@ -194,6 +212,47 @@ export class SystemExecutor {
           source: effect.source ? context[effect.source] : undefined,
           target: effect.target ? context[effect.target] : undefined,
         });
+        break;
+      }
+
+      case 'BREED_ENTITY': {
+        if (!this.genetics) break;
+        const parentA = context[effect.parentA];
+        const parentB = context[effect.parentB];
+        if (!parentA || !parentB) break;
+
+        // Generate child overrides via genetics service
+        const overrides = this.genetics.breed(parentA, parentB);
+
+        // Resolve position for spawning
+        const { entity: posEntity, path: posPath } = this.resolveTargetPath(effect.at, context);
+        if (posEntity) {
+          const posComp = posEntity.components.get(posPath || 'Position');
+          if (posComp) {
+            overrides['Position'] = { ...posComp };
+          }
+        }
+
+        this.world.queueSpawn(effect.blueprint, overrides);
+        break;
+      }
+
+      case 'EQUIP_ITEM': {
+        if (!this.inventory) break;
+        const target = context[effect.target];
+        const item = context[effect.item];
+        if (target && item) {
+          this.inventory.equip(target, item, effect.slot);
+        }
+        break;
+      }
+
+      case 'UNEQUIP_ITEM': {
+        if (!this.inventory) break;
+        const target = context[effect.target];
+        if (target) {
+          this.inventory.unequip(target, effect.slot);
+        }
         break;
       }
     }

@@ -5,9 +5,12 @@
 
 import { World } from '../ecs/world.js';
 import { SystemExecutor, type GameEvent } from '../dsl/executor.js';
-import { CanvasRenderer } from '../renderer/canvas.js';
+import type { IRenderer } from '../renderer/types.js';
+import { RendererFactory } from '../renderer/factory.js';
 import { generateMap, type GameMap, TileType } from './mapgen.js';
 import { PersistenceService, type SaveData } from './persistence.js';
+import { GeneticsService } from './genetics.js';
+import { InventoryService } from './inventory.js';
 import type { Cartridge } from '../cartridge/schema.js';
 import type { Entity, EntityId } from '../ecs/types.js';
 
@@ -25,13 +28,18 @@ const DIRECTIONS: Record<string, { dx: number; dy: number }> = {
   b: { dx: -1, dy: 1 },  n: { dx: 1, dy: 1 },
   h: { dx: -1, dy: 0 },  l: { dx: 1, dy: 0 },
   k: { dx: 0,  dy: -1 }, j: { dx: 0, dy: 1 },
+  // Rotation for pseudo-3D
+  a: { rotate: -1 }, d: { rotate: 1 },
+  w: { dx: 0,  dy: -1 }, s: { dx: 0, dy: 1 }, // w/s as forward/back
 };
 
 export class Game {
   private world: World;
   private executor: SystemExecutor;
-  private renderer: CanvasRenderer;
+  private renderer: IRenderer;
   private persistence: PersistenceService;
+  private genetics: GeneticsService;
+  private inventory: InventoryService;
   private map!: GameMap;
   private cartridge!: Cartridge;
   private phase: GamePhase = 'LOADING';
@@ -50,15 +58,24 @@ export class Game {
   ) {
     this.world = new World();
     this.persistence = new PersistenceService(this.world);
+    this.genetics = new GeneticsService(this.world);
+    this.inventory = new InventoryService(this.world);
     this.logCallback = logCallback;
     this.statsCallback = statsCallback;
-    this.executor = new SystemExecutor(this.world, logCallback);
+    
+    this.executor = new SystemExecutor(
+      this.world, 
+      logCallback, 
+      this.genetics, 
+      this.inventory
+    );
 
-    this.renderer = new CanvasRenderer({
+    // Initial renderer (GRID_2D)
+    this.renderer = RendererFactory.create('GRID_2D', {
       canvas,
       cellSize: 16,
       palette: {},
-      fontFamily: "'Courier New', monospace",
+      fontFamily: 'monospace',
     });
   }
 
@@ -68,12 +85,12 @@ export class Game {
     this.world.clear();
     this.turnCount = 0;
 
-    // Update renderer palette from cartridge
-    this.renderer = new CanvasRenderer({
+    // Update renderer from cartridge config
+    this.renderer = RendererFactory.create(cartridge.meta.renderer_mode, {
       canvas: document.getElementById('game-canvas') as HTMLCanvasElement,
       cellSize: 16,
       palette: cartridge.meta.palette ?? {},
-      fontFamily: "'Courier New', monospace",
+      fontFamily: 'monospace',
     });
 
     // Register component definitions
@@ -90,6 +107,11 @@ export class Game {
 
     // Register blueprints
     this.world.registerBlueprints(cartridge.blueprints);
+
+    // Configure genetics
+    if (cartridge.traits) {
+      this.genetics.setTraits(cartridge.traits);
+    }
 
     // Load systems
     this.executor.loadSystems(cartridge.systems);
@@ -138,23 +160,47 @@ export class Game {
     this.render();
   }
 
-  /** Handle keyboard input — main player action dispatcher */
   handleInput(key: string): void {
     if (this.phase !== 'PLAYER_TURN') return;
 
-    const dir = DIRECTIONS[key];
-    if (!dir) return; // Unrecognized key
+    const action = DIRECTIONS[key];
+    if (!action) return;
 
     const player = this.playerId ? this.world.getEntity(this.playerId) : undefined;
-    if (!player) {
-      this.phase = 'GAME_OVER';
-      this.logCallback('You have been destroyed.');
+    if (!player) return;
+
+    const pos = player.components.get('Position') as { x: number; y: number; direction?: string };
+
+    // Handle rotation
+    if ('rotate' in action) {
+      const dirs = ['N', 'E', 'S', 'W'];
+      const currentIdx = dirs.indexOf(pos.direction || 'N');
+      const newIdx = (currentIdx + action.rotate + 4) % 4;
+      pos.direction = dirs[newIdx];
+      this.finishTurn();
       return;
     }
 
-    const pos = player.components.get('Position') as { x: number; y: number };
-    const targetX = pos.x + dir.dx;
-    const targetY = pos.y + dir.dy;
+    // Handle movement (Perspective aware if direction exists)
+    let dx = action.dx || 0;
+    let dy = action.dy || 0;
+
+    if (pos.direction && (key === 'ArrowUp' || key === 'ArrowDown' || key === 'w' || key === 's')) {
+      const isForward = key === 'ArrowUp' || key === 'w';
+      const moveScale = isForward ? 1 : -1;
+      const perspectiveMap: Record<string, { dx: number; dy: number }> = {
+        'N': { dx: 0, dy: -1 },
+        'S': { dx: 0, dy: 1 },
+        'E': { dx: 1, dy: 0 },
+        'W': { dx: -1, dy: 0 },
+      };
+      const pDir = perspectiveMap[pos.direction];
+      dx = pDir.dx * moveScale;
+      dy = pDir.dy * moveScale;
+    }
+
+    const targetX = pos.x + dx;
+    const targetY = pos.y + dy;
 
     // Check wall collision
     if (this.map.tiles[targetY]?.[targetX] === TileType.Wall) return;

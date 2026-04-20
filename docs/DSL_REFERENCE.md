@@ -26,6 +26,7 @@ An AI generating a cartridge MUST conform to this schema exactly.
 | `version` | string | no | Semantic version |
 | `description` | string | no | Shown on game start |
 | `palette` | object | no | Named color overrides (see Renderer) |
+| `renderer_mode` | string | no | `GRID_2D` (default), `WIREFRAME_3D`, `CELL_PSEUDO_3D` |
 
 ### Palette Keys
 `floor`, `wall`, `wall_glyph`, `floor_glyph`, `bg`, `player`, `enemy`, `item`, `ui_text`
@@ -49,8 +50,8 @@ of field names to type descriptors.
 ```
 
 **Required components for the runtime:**
-- `Position` (x, y) — needed for map placement and movement
-- `Renderable` (glyph, color, layer) — needed for rendering
+- `Position` (x, y, direction) — needed for map placement and movement. `direction` is `"N"`, `"S"`, `"E"`, `"W"` for pseudo-3D.
+- `Renderable` (glyph, color, layer, mesh) — needed for rendering. `mesh` is for `WIREFRAME_3D`.
 - `Faction` (id) — `"player"` faction marks the player entity
 
 ---

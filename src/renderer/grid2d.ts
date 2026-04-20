@@ -1,42 +1,19 @@
 /**
- * Canvas Renderer — draws the game map and entities using glyph-based rendering.
+ * Grid 2D Renderer — draws the game map and entities using glyph-based rendering.
  * Designed for the classic roguelike aesthetic: monospaced glyphs on a grid.
  */
 
 import type { Entity } from '../ecs/types.js';
 import { type GameMap, TileType } from '../runtime/mapgen.js';
+import type { IRenderer, RenderConfig } from './types.js';
 
-/** Rendering configuration */
-export interface RenderConfig {
-  canvas: HTMLCanvasElement;
-  cellSize: number;
-  /** Color palette from cartridge meta.palette */
-  palette: Record<string, string>;
-  /** Font family for glyph rendering */
-  fontFamily: string;
-}
-
-const DEFAULT_PALETTE: Record<string, string> = {
-  floor: '#1a1a2e',
-  wall: '#3d3d5c',
-  wall_glyph: '#555577',
-  floor_glyph: '#333355',
-  player: '#00ff88',
-  enemy: '#ff4444',
-  item: '#ffcc00',
-  ui_text: '#cccccc',
-  bg: '#0a0a0f',
-};
-
-export class CanvasRenderer {
+export class Grid2DRenderer implements IRenderer {
   private ctx: CanvasRenderingContext2D;
   private cellSize: number;
   private palette: Record<string, string>;
   private fontFamily: string;
-  /** Camera offset for scrolling (in cells) */
   private cameraX = 0;
   private cameraY = 0;
-  /** Visible grid dimensions */
   private viewCols: number;
   private viewRows: number;
 
@@ -45,19 +22,17 @@ export class CanvasRenderer {
     if (!ctx) throw new Error('Failed to get 2d canvas context');
     this.ctx = ctx;
     this.cellSize = config.cellSize;
-    this.palette = { ...DEFAULT_PALETTE, ...config.palette };
+    this.palette = config.palette;
     this.fontFamily = config.fontFamily;
     this.viewCols = Math.floor(config.canvas.width / this.cellSize);
     this.viewRows = Math.floor(config.canvas.height / this.cellSize);
   }
 
-  /** Center the camera on a position */
   centerOn(x: number, y: number): void {
     this.cameraX = x - Math.floor(this.viewCols / 2);
     this.cameraY = y - Math.floor(this.viewRows / 2);
   }
 
-  /** Full render pass: clear → map tiles → entities */
   render(map: GameMap, entities: Entity[]): void {
     const { ctx, cellSize } = this;
 
@@ -77,7 +52,7 @@ export class CanvasRenderer {
         const mapY = row + this.cameraY;
 
         if (mapX < 0 || mapX >= map.width || mapY < 0 || mapY >= map.height) {
-          continue; // Out of map bounds
+          continue;
         }
 
         const tile = map.tiles[mapY][mapX];
@@ -98,7 +73,7 @@ export class CanvasRenderer {
       }
     }
 
-    // Draw entities sorted by render layer
+    // Draw entities
     const sorted = [...entities]
       .filter(e => e.components.has('Renderable') && e.components.has('Position'))
       .sort((a, b) => {
@@ -112,28 +87,24 @@ export class CanvasRenderer {
       const rend = entity.components.get('Renderable') as {
         glyph: string;
         color: string;
-        layer: number;
       };
 
-      // Convert world coords to screen coords
       const screenCol = pos.x - this.cameraX;
       const screenRow = pos.y - this.cameraY;
 
       if (screenCol < 0 || screenCol >= this.viewCols ||
           screenRow < 0 || screenRow >= this.viewRows) {
-        continue; // Off-screen
+        continue;
       }
 
       const px = screenCol * cellSize;
       const py = screenRow * cellSize;
 
-      // Draw entity glyph
       ctx.fillStyle = rend.color;
       ctx.fillText(rend.glyph, px + cellSize / 2, py + cellSize / 2);
     }
   }
 
-  /** Draw a highlight square at a grid position (for cursor/selection) */
   drawHighlight(x: number, y: number, color = 'rgba(255, 255, 0, 0.3)'): void {
     const screenCol = x - this.cameraX;
     const screenRow = y - this.cameraY;
@@ -149,7 +120,6 @@ export class CanvasRenderer {
     );
   }
 
-  /** Convert pixel coordinates to grid coordinates */
   pixelToGrid(px: number, py: number): { x: number; y: number } {
     return {
       x: Math.floor(px / this.cellSize) + this.cameraX,

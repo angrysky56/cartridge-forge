@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "title": "Dungeon Crawler Demo",
+    "version": "1.0.0",
+    "description": "A benchmark for the Cell-Based Pseudo-3D renderer.",
+    "renderer_mode": "CELL_PSEUDO_3D",
+    "palette": {
+      "bg": "#000000",
+      "wall": "#222244",
+      "wall_glyph": "#444488"
+    }
+  },
+  "components": {
+    "Position": { "x": "number", "y": "number", "direction": "string" },
+    "Renderable": { "color": "string", "glyph": "string", "layer": "number" },
+    "Faction": { "id": "string" }
+  },
+  "blueprints": {
+    "Player": {
+      "Position": { "x": 1, "y": 1, "direction": "N" },
+      "Faction": { "id": "player" },
+      "Renderable": { "color": "#00ff88", "glyph": "@", "layer": 10 }
+    }
+  },
+  "systems": [],
+  "map": {
+    "width": 10,
+    "height": 10,
+    "generator": "dungeon"
+  }
+}

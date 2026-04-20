@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "title": "Wireframe Cube Demo",
+    "version": "1.0.0",
+    "description": "A benchmark for the Wireframe 3D renderer.",
+    "renderer_mode": "WIREFRAME_3D",
+    "palette": {
+      "bg": "#050505",
+      "ui_text": "#00ff88"
+    }
+  },
+  "components": {
+    "Position": { "x": "number", "y": "number", "z": "number" },
+    "Renderable": { "color": "string", "mesh": "object" },
+    "Faction": { "id": "string" }
+  },
+  "blueprints": {
+    "Cube": {
+      "Position": { "x": 0, "y": 0, "z": 0 },
+      "Renderable": {
+        "color": "#00ff88",
+        "mesh": {
+          "vertices": [
+            { "x": -2, "y": -2, "z": -2 }, { "x": 2, "y": -2, "z": -2 },
+            { "x": 2, "y": 2, "z": -2 }, { "x": -2, "y": 2, "z": -2 },
+            { "x": -2, "y": -2, "z": 2 }, { "x": 2, "y": -2, "z": 2 },
+            { "x": 2, "y": 2, "z": 2 }, { "x": -2, "y": 2, "z": 2 }
+          ],
+          "edges": [
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7]
+          ]
+        }
+      }
+    },
+    "Player": {
+      "Position": { "x": 0, "y": 0, "z": -10 },
+      "Faction": { "id": "player" },
+      "Renderable": { "color": "#ffffff", "glyph": "@" }
+    }
+  },
+  "systems": [],
+  "map": {
+    "width": 20,
+    "height": 20,
+    "generator": "empty"
+  }
+}

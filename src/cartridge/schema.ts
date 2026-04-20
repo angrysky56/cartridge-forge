@@ -27,7 +27,7 @@ export const ComponentDefSchema = z.union([
 // Blueprints are entity templates with initialized component values.
 export const BlueprintSchema = z.record(
   z.string(),  // Component name
-  z.record(z.string(), z.unknown()),  // Component field values
+  z.record(z.string(), z.any()),  // Component field values (can include complex mesh objects)
 );
 
 // ─── DSL Effect Types ───────────────────────────────────────────────
@@ -77,6 +77,27 @@ const EmitEventEffectSchema = z.object({
   target: z.string().optional(),
 });
 
+const BreedEntityEffectSchema = z.object({
+  type: z.literal('BREED_ENTITY'),
+  parentA: z.string(),
+  parentB: z.string(),
+  blueprint: z.string(),       // Base blueprint to use for structure
+  at: z.string(),              // Position expression
+});
+
+const EquipItemEffectSchema = z.object({
+  type: z.literal('EQUIP_ITEM'),
+  target: z.string(),          // The entity doing the equipping
+  item: z.string(),            // The item entity variable
+  slot: z.string(),
+});
+
+const UnequipItemEffectSchema = z.object({
+  type: z.literal('UNEQUIP_ITEM'),
+  target: z.string(),
+  slot: z.string(),
+});
+
 export const EffectSchema = z.discriminatedUnion('type', [
   MutateEffectSchema,
   DestroyEntityEffectSchema,
@@ -85,6 +106,9 @@ export const EffectSchema = z.discriminatedUnion('type', [
   RemoveTagEffectSchema,
   LogMessageEffectSchema,
   EmitEventEffectSchema,
+  BreedEntityEffectSchema,
+  EquipItemEffectSchema,
+  UnequipItemEffectSchema,
 ]);
 
 // ─── Conditional Block (for post_checks) ────────────────────────────
@@ -133,6 +157,7 @@ export const CartridgeSchema = z.object({
     version: z.string().optional(),
     description: z.string().optional(),
     palette: z.record(z.string(), z.string()).optional(),  // Named color overrides
+    renderer_mode: z.enum(['GRID_2D', 'WIREFRAME_3D', 'CELL_PSEUDO_3D']).default('GRID_2D'),
   }),
   components: z.record(z.string(), ComponentDefSchema),
   blueprints: z.record(z.string(), BlueprintSchema),
@@ -140,6 +165,8 @@ export const CartridgeSchema = z.object({
   world_gen: WorldGenSchema,
   /** Named events the runtime recognizes */
   events: z.array(z.string()).optional(),
+  /** Named traits for genetic inheritance */
+  traits: z.record(z.string(), z.record(z.string(), z.number())).optional(),
 });
 
 /** Inferred TypeScript type from the schema */

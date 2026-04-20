@@ -3,15 +3,15 @@
 ## Milestone 1: The Core Expansion (Infrastructure)
 *Foundational systems to support complex game data and rendering.*
 
-- [ ] **Phase 1: Persistence & State Management**
+- [x] **Phase 1: Persistence & State Management**
   - Standardized save/load system.
   - Component-level persistence markers.
   - Undo/Redo capability for Forge operations.
-- [ ] **Phase 2: The Multi-Mode Renderer**
-  - Narrative/Text mode (Zork style).
-  - 3D Wireframe Projection (Elite style).
-  - Cell-Based Pseudo-3D (Wizardry style).
-  - Tactical Overlay (Archon style).
+- [x] **Phase 2: Multi-Mode Rendering** (Visual Foundation)
+  - [x] Implement `IRenderer` and `RendererFactory`.
+  - [x] `Wireframe3DRenderer` for Elite-style vector graphics.
+  - [x] `CellPseudo3DRenderer` for Wizardry-style dungeon crawling.
+  - [x] Dynamic switching via Cartridge Metadata.
 - [ ] **Phase 3: DSL Evolution**
   - Genetic data support (Mail Order Monsters).
   - Complex inventory & stat math.
