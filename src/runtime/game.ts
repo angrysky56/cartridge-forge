@@ -7,6 +7,7 @@ import { World } from '../ecs/world.js';
 import { SystemExecutor, type GameEvent } from '../dsl/executor.js';
 import { CanvasRenderer } from '../renderer/canvas.js';
 import { generateMap, type GameMap, TileType } from './mapgen.js';
+import { PersistenceService, type SaveData } from './persistence.js';
 import type { Cartridge } from '../cartridge/schema.js';
 import type { Entity, EntityId } from '../ecs/types.js';
 
@@ -30,6 +31,7 @@ export class Game {
   private world: World;
   private executor: SystemExecutor;
   private renderer: CanvasRenderer;
+  private persistence: PersistenceService;
   private map!: GameMap;
   private cartridge!: Cartridge;
   private phase: GamePhase = 'LOADING';
@@ -47,6 +49,7 @@ export class Game {
     statsCallback: (entity: Entity | undefined) => void,
   ) {
     this.world = new World();
+    this.persistence = new PersistenceService(this.world);
     this.logCallback = logCallback;
     this.statsCallback = statsCallback;
     this.executor = new SystemExecutor(this.world, logCallback);
@@ -72,6 +75,18 @@ export class Game {
       palette: cartridge.meta.palette ?? {},
       fontFamily: "'Courier New', monospace",
     });
+
+    // Register component definitions
+    const compDefs: any = {};
+    for (const [name, def] of Object.entries(cartridge.components)) {
+      if ('fields' in def) {
+        compDefs[name] = { name, ...def };
+      } else {
+        // Simple format -> convert to full
+        compDefs[name] = { name, fields: def, persistent: true };
+      }
+    }
+    this.world.registerComponentDefinitions(compDefs);
 
     // Register blueprints
     this.world.registerBlueprints(cartridge.blueprints);
@@ -272,6 +287,30 @@ export class Game {
       this.renderer.centerOn(pos.x, pos.y);
     }
     this.renderer.render(this.map, this.world.allEntities());
+  }
+
+  /** Export current game state as JSON */
+  saveGame(): string {
+    const data = this.persistence.save(this.turnCount, this.playerId, this.map.tiles);
+    return JSON.stringify(data);
+  }
+
+  /** Restore game state from JSON */
+  loadGame(json: string): void {
+    const data = JSON.parse(json) as SaveData;
+    const result = this.persistence.load(data);
+    
+    this.turnCount = result.turnCount;
+    this.playerId = result.playerId;
+    
+    // Restore map tiles if present
+    if (result.mapTiles) {
+      this.map.tiles = result.mapTiles;
+    }
+
+    this.logCallback('--- GAME LOADED ---');
+    this.render();
+    this.statsCallback(this.world.getEntity(this.playerId!));
   }
 
   /** Fisher-Yates shuffle */

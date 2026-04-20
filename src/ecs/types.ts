@@ -14,6 +14,13 @@ export type ComponentName = string;
 /** A component instance is a plain key-value record */
 export type ComponentData = Record<string, unknown>;
 
+/** Metadata for a component type */
+export interface ComponentDefinition {
+  name: string;
+  fields: Record<string, string>; // Field name -> Type descriptor
+  persistent: boolean;
+}
+
 /** An entity is an ID + a map of component names to their data */
 export interface Entity {
   id: EntityId;
@@ -22,4 +29,6 @@ export interface Entity {
   tags: Set<string>;
   /** Whether this entity has been marked for destruction */
   destroyed: boolean;
+  /** Whether this entity should be saved (usually true if it has persistent components) */
+  persistent: boolean;
 }

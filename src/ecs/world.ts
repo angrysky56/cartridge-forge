@@ -6,19 +6,23 @@
 
 import type { EntityId, ComponentName, ComponentData, Entity } from './types.js';
 
-let nextEntityId = 0;
-
-/** Generate a unique entity ID */
-function generateId(prefix = 'e'): EntityId {
-  return `${prefix}_${nextEntityId++}`;
-}
-
 export class World {
+  /** Next entity ID sequence */
+  private nextEntityId = 0;
+
+  /** Generate a unique entity ID */
+  private generateId(prefix = 'e'): EntityId {
+    return `${prefix}_${this.nextEntityId++}`;
+  }
+
   /** All living entities indexed by ID */
   private entities = new Map<EntityId, Entity>();
 
   /** Blueprint templates loaded from cartridge */
   private blueprints = new Map<string, Record<string, ComponentData>>();
+
+  /** Component definitions and metadata */
+  private componentDefs = new Map<ComponentName, ComponentDefinition>();
 
   /** Pending entity destructions (processed end of turn) */
   private destructionQueue: EntityId[] = [];
@@ -33,6 +37,13 @@ export class World {
     }
   }
 
+  /** Register component definitions from a cartridge */
+  registerComponentDefinitions(defs: Record<ComponentName, ComponentDefinition>): void {
+    for (const [name, def] of Object.entries(defs)) {
+      this.componentDefs.set(name, def);
+    }
+  }
+
   /** Create an entity from a blueprint with optional component overrides */
   spawn(blueprintName: string, overrides?: Record<string, Partial<ComponentData>>): Entity {
     const template = this.blueprints.get(blueprintName);
@@ -41,10 +52,11 @@ export class World {
     }
 
     const entity: Entity = {
-      id: generateId(blueprintName),
+      id: this.generateId(blueprintName),
       components: new Map(),
       tags: new Set(),
       destroyed: false,
+      persistent: false, // Will be determined by components
     };
 
     // Deep-clone each component from the blueprint
@@ -55,6 +67,12 @@ export class World {
         Object.assign(cloned, overrides[compName]);
       }
       entity.components.set(compName, cloned);
+
+      // If any component is persistent, the whole entity becomes persistent
+      const def = this.componentDefs.get(compName);
+      if (def?.persistent) {
+        entity.persistent = true;
+      }
     }
 
     this.entities.set(entity.id, entity);
@@ -163,6 +181,6 @@ export class World {
     this.entities.clear();
     this.destructionQueue = [];
     this.spawnQueue = [];
-    nextEntityId = 0;
+    this.nextEntityId = 0;
   }
 }

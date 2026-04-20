@@ -15,7 +15,13 @@ const ComponentFieldSchema = z.union([
   z.string().startsWith('array<'),  // e.g., "array<EntityID>"
 ]);
 
-export const ComponentDefSchema = z.record(z.string(), ComponentFieldSchema);
+export const ComponentDefSchema = z.union([
+  z.record(z.string(), ComponentFieldSchema), // Simple: "Position": { "x": "number" }
+  z.object({
+    fields: z.record(z.string(), ComponentFieldSchema),
+    persistent: z.boolean().optional().default(true),
+  }),
+]);
 
 // ─── Blueprint Schema ───────────────────────────────────────────────
 // Blueprints are entity templates with initialized component values.
