@@ -1,0 +1,50 @@
+{
+  "components": {
+    "Position": { "x": "number", "y": "number" },
+    "Glyph": { "char": "string", "color": "string" },
+    "Health": { "current": "number", "max": "number" },
+    "CombatStats": { "strength": "number", "armor": "number" }
+  },
+  "systems": {
+    "Movement": {
+      "listens_for": "ACTION_MOVE",
+      "context": { "actor": "source" },
+      "effects": [
+        {
+          "type": "MUTATE",
+          "target": "actor.Position.x",
+          "operation": "ADD",
+          "value": "event.dx"
+        },
+        {
+          "type": "MUTATE",
+          "target": "actor.Position.y",
+          "operation": "ADD",
+          "value": "event.dy"
+        }
+      ]
+    },
+    "BasicCombat": {
+      "listens_for": "ACTION_ATTACK",
+      "context": { "attacker": "source", "target": "target" },
+      "effects": [
+        {
+          "type": "MUTATE",
+          "target": "target.Health.current",
+          "operation": "SUBTRACT",
+          "value": "max(1, attacker.CombatStats.strength - target.CombatStats.armor)"
+        }
+      ],
+      "post_checks": [
+        {
+          "if": "target.Health.current <= 0",
+          "then": [
+            { "type": "DESTROY_ENTITY", "target": "target" },
+            { "type": "LOG_MESSAGE", "message": "The enemy was defeated!" }
+          ]
+        }
+      ]
+    }
+  },
+  "events": ["ACTION_MOVE", "ACTION_ATTACK"]
+}

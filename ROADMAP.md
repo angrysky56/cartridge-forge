@@ -24,9 +24,9 @@
   - [x] Authored specialized skills: `Map Architect`, `Mechanics Designer`, `Lore Weaver`.
   - [x] Implemented `Forgemaster` agent instructions.
   - [x] Developed `Forge CLI` for fragment merging and validation.
-- [ ] **Phase 5: Cartridge Authoring Pipeline**
-  - [ ] Implementation of end-to-end "prompt-to-game" generation.
-  - [ ] Iterative refinement logic (Agent-to-Agent feedback).
+- [x] **Phase 5: Cartridge Authoring Pipeline**
+  - [x] Implementation of end-to-end "prompt-to-game" generation.
+  - [x] Iterative refinement logic (Agent-to-Agent feedback) in Forgemaster instructions.
 - [ ] **Phase 6: Verification & Validation**
   - [ ] Automated playtesting agents.
   - [ ] Structural validation (Map connectivity, logic soundness).

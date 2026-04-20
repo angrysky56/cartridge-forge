@@ -16,15 +16,16 @@ Produce JSON fragments for `components`, `blueprints`, and `systems`.
 ```json
 {
   "systems": {
-    "MeleeCombat": {
-      "listens_for": "ACTION_ATTACK",
-      "context": { "attacker": "source", "target": "target" },
+    "BreedingArena": {
+      "listens_for": "ACTION_BREED",
+      "context": { "p1": "source", "p2": "target" },
       "effects": [
         {
-          "type": "MUTATE",
-          "target": "target.Health.current",
-          "operation": "SUBTRACT",
-          "value": "max(1, attacker.CombatStats.strength - target.CombatStats.armor)"
+          "type": "BREED_ENTITY",
+          "parentA": "p1",
+          "parentB": "p2",
+          "blueprint": "mutant_base",
+          "at": "p1.Position"
         }
       ]
     }
