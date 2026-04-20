@@ -1,54 +1,45 @@
-# Cartridge Forge Roadmap
+# Cartridge Forge: Development Roadmap
 
-## Milestone 1: The Core Expansion (Infrastructure)
-*Foundational systems to support complex game data and rendering.*
+## Milestone 1: The Core Runtime (Completed)
+*Foundation of the ECS and Cartridge System.*
 
-- [x] **Phase 1: Persistence & State Management**
-  - Standardized save/load system.
-  - Component-level persistence markers.
-  - Undo/Redo capability for Forge operations.
-- [x] **Phase 2: Multi-Mode Rendering** (Visual Foundation)
-  - [x] Implement `IRenderer` and `RendererFactory`.
-  - [x] `Wireframe3DRenderer` for Elite-style vector graphics.
-  - [x] `CellPseudo3DRenderer` for Wizardry-style dungeon crawling.
-  - [x] Dynamic switching via Cartridge Metadata.
-- [ ] **Phase 3: DSL Evolution**
-  - Genetic data support (Mail Order Monsters).
-  - Complex inventory & stat math.
-  - Trigger depth capping & loop prevention.
+- [x] **Phase 1: Basic Runtime & Rendering**
+  - [x] ECS Engine (World, Entity, Component, System).
+  - [x] WebGL Renderer with C64 color palette.
+  - [x] Cartridge JSON Loader & Schema.
+- [x] **Phase 2: Declarative DSL & Event System**
+  - [x] Event-driven system execution.
+  - [x] DSL for state mutations (MUTATE, SPAWN, etc.).
+  - [x] Math expression evaluation for effects.
+- [x] **Phase 3: DSL Evolution & RPG Mechanics**
+  - [x] Genetics system for entity breeding (traits & mutation).
+  - [x] Inventory & Equipment stat modifiers.
+  - [x] Refactored `World.spawn` for dynamic configuration.
 
 ## Milestone 2: The Agent Forge (Orchestration)
 *Turning AI into a game designer.*
 
-- [ ] **Phase 4: Agent Skill Folders**
-  - Structure for "Forge Skills" (e.g., `mechanics-designer`, `map-architect`).
-  - Integration with the local agent pipeline.
+- [x] **Phase 4: Agent Skill Folders**
+  - [x] Initialized `.forge/` directory for Agent Skills.
+  - [x] Authored specialized skills: `Map Architect`, `Mechanics Designer`, `Lore Weaver`.
+  - [x] Implemented `Forgemaster` agent instructions.
+  - [x] Developed `Forge CLI` for fragment merging and validation.
 - [ ] **Phase 5: Cartridge Authoring Pipeline**
-  - From prompt to valid JSON cartridge.
-  - Iterative refinement (Agent-to-Agent feedback).
+  - [ ] Implementation of end-to-end "prompt-to-game" generation.
+  - [ ] Iterative refinement logic (Agent-to-Agent feedback).
 - [ ] **Phase 6: Verification & Validation**
-  - Automated playtesting agents.
-  - Structural validation (Map connectivity, logic soundness).
+  - [ ] Automated playtesting agents.
+  - [ ] Structural validation (Map connectivity, logic soundness).
 
-## Milestone 3: Real-Time Action & Sensory
+## Milestone 3: Real-Time Action & Sensory (Future)
 *Bringing the world to life.*
 
-- [ ] **Phase 7: RTA Core**
-  - Keyboard-driven physics and collision.
-  - Action-priority tick system.
-- [ ] **Phase 8: Audio Synthesis**
-  - Procedural sound effects (C64 SID-inspired).
-  - Music track sequencing in DSL.
-
-## Milestone 4: The Great Forging (Final Benchmarks)
-*Recreating the classics.*
-
-- [ ] **Phase 9: Classic Benchmarks**
-  - Template: *Elite* (3D Space Sim).
-  - Template: *Zork* (Interactive Fiction).
-  - Template: *Mail Order Monsters* (Mutation/Tactical).
-  - Template: *Wizardry* (Dungeon Crawler).
-  - Template: *Archon* (Tactical Action).
-- [ ] **Phase 10: Polishing & User Experience**
-  - Glassmorphism UI for the Forge interface.
-  - Export to Standalone executable/web page.
+- [ ] **Phase 7: Real-Time Action (RTA)**
+  - [ ] Discrete to Continuous time transition.
+  - [ ] Collision detection & Physics components.
+- [ ] **Phase 8: Sensory & Perception**
+  - [ ] Entity FOV and Light sources.
+  - [ ] Audio/SFX triggers in DSL.
+- [ ] **Phase 9: High-Depth Generation**
+  - [ ] Multi-level world generation.
+  - [ ] Complex narrative branching.
