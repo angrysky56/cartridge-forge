@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "title": "Dungeon of the Forgotten",
+    "version": "1.0.0",
+    "description": "Explore ancient stone catacombs. Slay goblins and skeletons, scavenge weapons, and descend the depths.",
+    "renderer_mode": "GRID_2D",
+    "palette": {
+      "bg": "#07080d",
+      "wall": "#1c2233",
+      "wall_glyph": "#3d4b6e",
+      "floor": "#0f131c",
+      "floor_glyph": "#232b3d",
+      "player": "#00ffcc",
+      "goblin": "#44ff66",
+      "skeleton": "#e0e6f0",
+      "orc_guard": "#ff3355",
+      "item": "#ffcc00",
+      "potion": "#00f0ff"
+    }
+  },
+  "components": {
+    "Position": { "x": "number", "y": "number" },
+    "Renderable": { "glyph": "string", "color": "string", "layer": "number" },
+    "Glyph": { "char": "string", "color": "string" },
+    "Health": { "current": "number", "max": "number" },
+    "Faction": { "id": "string" },
+    "CombatStats": { "strength": "number", "armor": "number" },
+    "Description": { "name": "string", "text": "string" },
+    "Equippable": { "slot": "string", "modifiers": "object" },
+    "Equipment": { "slots": "object" },
+    "HealthPack": { "healAmount": "number" }
+  },
+  "blueprints": {
+    "player": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "@", "color": "#00ffcc", "layer": 3 },
+      "Glyph": { "char": "@", "color": "#00ffcc" },
+      "Health": { "current": 120, "max": 120 },
+      "Faction": { "id": "player" },
+      "CombatStats": { "strength": 12, "armor": 3 },
+      "Description": { "name": "Dungeon Delver", "text": "A seasoned explorer of lost catacombs." },
+      "Equipment": { "slots": {} }
+    },
+    "goblin": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "g", "color": "#44ff66", "layer": 2 },
+      "Glyph": { "char": "g", "color": "#44ff66" },
+      "Health": { "current": 25, "max": 25 },
+      "Faction": { "id": "monster" },
+      "CombatStats": { "strength": 8, "armor": 1 },
+      "Description": { "name": "Cave Goblin", "text": "A scrawny subterranean scavenger." }
+    },
+    "skeleton": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "s", "color": "#e0e6f0", "layer": 2 },
+      "Glyph": { "char": "s", "color": "#e0e6f0" },
+      "Health": { "current": 35, "max": 35 },
+      "Faction": { "id": "monster" },
+      "CombatStats": { "strength": 12, "armor": 2 },
+      "Description": { "name": "Restless Skeleton", "text": "Animated bones gripping a rusty scythe." }
+    },
+    "orc_guard": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "O", "color": "#ff3355", "layer": 2 },
+      "Glyph": { "char": "O", "color": "#ff3355" },
+      "Health": { "current": 65, "max": 65 },
+      "Faction": { "id": "monster" },
+      "CombatStats": { "strength": 17, "armor": 4 },
+      "Description": { "name": "Dungeon Champion", "text": "A brutal armored guard defending the lower descent." }
+    },
+    "broadsword": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "/", "color": "#ffcc00", "layer": 1 },
+      "Glyph": { "char": "/", "color": "#ffcc00" },
+      "Equippable": {
+        "slot": "main_hand",
+        "modifiers": { "CombatStats.strength": 7 }
+      },
+      "Description": { "name": "Tempered Broadsword", "text": "A well-balanced steel blade (+7 Strength)." }
+    },
+    "iron_shield": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "]", "color": "#00f0ff", "layer": 1 },
+      "Glyph": { "char": "]", "color": "#00f0ff" },
+      "Equippable": {
+        "slot": "off_hand",
+        "modifiers": { "CombatStats.armor": 4 }
+      },
+      "Description": { "name": "Kite Shield", "text": "Sturdy iron protection (+4 Armor)." }
+    },
+    "health_potion": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "!", "color": "#00f0ff", "layer": 1 },
+      "Glyph": { "char": "!", "color": "#00f0ff" },
+      "HealthPack": { "healAmount": 35 },
+      "Description": { "name": "Health Elixir", "text": "Restores vital health." }
+    },
+    "corpse": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "%", "color": "#632d42", "layer": 0 },
+      "Glyph": { "char": "%", "color": "#632d42" },
+      "Description": { "name": "Monster Remains", "text": "Scattered bones of a defeated enemy." }
+    },
+    "stairs": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": ">", "color": "#ffd700", "layer": 1 },
+      "Glyph": { "char": ">", "color": "#ffd700" },
+      "Description": { "name": "Dungeon Stairs", "text": "Descends to the next floor of the labyrinth." }
+    }
+  },
+  "systems": {
+    "melee_attack": {
+      "listens_for": "ACTION_ATTACK",
+      "context": { "attacker": "event.source", "target": "event.target" },
+      "requires": [
+        "distance(attacker.Position, target.Position) == 1",
+        "attacker.Faction.id != target.Faction.id"
+      ],
+      "priority": 10,
+      "effects": [
+        {
+          "type": "MUTATE",
+          "target": "target.Health.current",
+          "operation": "SUBTRACT",
+          "value": "max(1, attacker.CombatStats.strength - (target.CombatStats.armor || 0))"
+        },
+        {
+          "type": "LOG_MESSAGE",
+          "message": "{attacker.Description.name} strikes {target.Description.name} for {value} damage!"
+        }
+      ],
+      "post_checks": [
+        {
+          "if": "target.Health.current <= 0",
+          "then": [
+            { "type": "LOG_MESSAGE", "message": "{target.Description.name} was defeated!" },
+            { "type": "DESTROY_ENTITY", "target": "target" },
+            { "type": "SPAWN_ENTITY", "blueprint": "corpse", "at": "target.Position" }
+          ]
+        }
+      ]
+    }
+  },
+  "world_gen": {
+    "width": 38,
+    "height": 30,
+    "algorithm": "bsp_rooms",
+    "room_min_size": 5,
+    "room_max_size": 9,
+    "wall_glyph": "#",
+    "floor_glyph": ".",
+    "wall_density": 0.45,
+    "spawn_table": [
+      { "blueprint": "goblin", "weight": 0.4, "max_per_level": 5 },
+      { "blueprint": "skeleton", "weight": 0.3, "max_per_level": 3 },
+      { "blueprint": "orc_guard", "weight": 0.15, "max_per_level": 2 },
+      { "blueprint": "broadsword", "weight": 0.25, "max_per_level": 1 },
+      { "blueprint": "iron_shield", "weight": 0.25, "max_per_level": 1 },
+      { "blueprint": "health_potion", "weight": 0.35, "max_per_level": 3 }
+    ]
+  },
+  "events": [
+    "ACTION_MOVE",
+    "ACTION_ATTACK",
+    "TURN_START",
+    "TURN_END"
+  ]
+}

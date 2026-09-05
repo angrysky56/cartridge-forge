@@ -21,6 +21,7 @@ export interface GameMap {
   floorTiles: Array<{ x: number; y: number }>;
   floorGlyph: string;
   wallGlyph: string;
+  stairsPosition?: { x: number; y: number };
 }
 
 /** Generate a map from cartridge world_gen configuration */
@@ -206,6 +207,9 @@ function buildMapResult(
     }
   }
 
+  // Pick stairs tile (furthest floor tile or near the end of the array)
+  const stairsPosition = floorTiles.length > 2 ? floorTiles[floorTiles.length - 1] : undefined;
+
   return {
     width,
     height,
@@ -213,5 +217,6 @@ function buildMapResult(
     floorTiles,
     floorGlyph: cfg.floor_glyph,
     wallGlyph: cfg.wall_glyph,
+    stairsPosition,
   };
 }

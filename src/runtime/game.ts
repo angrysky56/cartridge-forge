@@ -58,17 +58,21 @@ export class Game {
   private phase: GamePhase = 'LOADING';
   private playerId: EntityId | null = null;
   private turnCount = 0;
+  private depth = 1;
 
   /** UI callback for combat log messages */
   private logCallback: (msg: string) => void;
   /** UI callback for stats panel updates */
   private statsCallback: (entity: Entity | undefined) => void;
 
+  private canvas: HTMLCanvasElement;
+
   constructor(
     canvas: HTMLCanvasElement,
     logCallback: (msg: string) => void,
     statsCallback: (entity: Entity | undefined) => void,
   ) {
+    this.canvas = canvas;
     this.world = new World();
     this.persistence = new PersistenceService(this.world);
     this.genetics = new GeneticsService(this.world);
@@ -97,14 +101,20 @@ export class Game {
     this.cartridge = cartridge;
     this.world.clear();
     this.turnCount = 0;
+    this.depth = 1;
 
     // Update renderer from cartridge config
+    const activeCanvas = (typeof document !== 'undefined' ? document.getElementById('game-canvas') as HTMLCanvasElement : null) || this.canvas;
     this.renderer = RendererFactory.create(cartridge.meta.renderer_mode, {
-      canvas: document.getElementById('game-canvas') as HTMLCanvasElement,
+      canvas: activeCanvas,
       cellSize: 28,
       palette: cartridge.meta.palette ?? {},
       fontFamily: "'JetBrains Mono', monospace",
     });
+
+    if (this.renderer && 'resetExploration' in (this.renderer as any)) {
+      (this.renderer as any).resetExploration();
+    }
 
     // Register component definitions
     const compDefs: any = {};
@@ -118,8 +128,16 @@ export class Game {
     }
     this.world.registerComponentDefinitions(compDefs);
 
-    // Register blueprints
-    this.world.registerBlueprints(cartridge.blueprints);
+    // Register blueprints (including default stairs if not provided)
+    const blueprints: Record<string, any> = {
+      stairs: {
+        Renderable: { glyph: '>', color: '#ffd700', layer: 1 },
+        Glyph: { char: '>', color: '#ffd700' },
+        Description: { name: 'Dungeon Stairs', text: 'Descend to deeper complex' },
+      },
+      ...cartridge.blueprints,
+    };
+    this.world.registerBlueprints(blueprints);
 
     // Configure genetics
     if (cartridge.traits) {
@@ -148,6 +166,13 @@ export class Game {
         this.playerId = player.id;
         break;
       }
+    }
+
+    // Spawn stairs if available on this map
+    if (this.map.stairsPosition) {
+      this.world.spawn('stairs', {
+        Position: { x: this.map.stairsPosition.x, y: this.map.stairsPosition.y },
+      });
     }
 
     // Spawn enemies from spawn_table
@@ -305,8 +330,16 @@ export class Game {
         const name = desc?.name || '';
         const text = desc?.text || '';
 
-        // Health pack / Repair Kit pickup
-        if (name === 'Repair Kit' || name.includes('Health') || text.includes('Restores') || item.components.has('HealthPack')) {
+        // 1. Dungeon Stairs / Level Transition
+        if (name.includes('Stairs') || name.includes('Hatch') || item.id.startsWith('stairs_') || item.components.has('Stairs')) {
+          this.logCallback(`You step onto ${name || 'the stairs'} and descend deeper...`);
+          sound.playItem();
+          this.descendFloor();
+          return;
+        }
+
+        // 2. Health pack / Repair Kit pickup
+        else if (name === 'Repair Kit' || name.includes('Health') || text.includes('Restores') || item.components.has('HealthPack')) {
           const playerHealth = player.components.get('Health') as { current: number; max: number } | undefined;
           if (playerHealth) {
             const healAmount = 25;
@@ -321,9 +354,27 @@ export class Game {
             }
             this.world.queueDestroy(item.id);
           }
-        } else if (item.components.has('Equippable')) {
-          this.logCallback(`Found item: ${name || 'Equipment'}!`);
+        }
+
+        // 3. Equippable weapon / armor / shield
+        else if (item.components.has('Equippable')) {
+          const equippable = item.components.get('Equippable') as { slot: string; modifiers: Record<string, number> };
+          this.inventory.equip(player, item, equippable.slot);
+
+          // Remove from map grid, but keep alive in world for modifier lookups
+          item.components.delete('Position');
+          item.components.delete('Renderable');
+          item.components.delete('Glyph');
+
+          const modDesc = Object.entries(equippable.modifiers || {})
+            .map(([k, v]) => `+${v} ${k.split('.').pop()}`)
+            .join(', ');
+          this.logCallback(`Equipped ${name || 'Gear'} into ${equippable.slot}${modDesc ? ` (${modDesc})` : ''}!`);
           sound.playItem();
+          if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+            (this.renderer as any).addFloatingText(targetX, targetY, `Equipped ${name}`, '#00f0ff');
+          }
+          this.statsCallback(player);
         }
       }
       this.world.flush();
@@ -492,6 +543,104 @@ export class Game {
     if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
       (this.renderer as any).addFloatingText(x, y, text, color);
     }
+  }
+
+  /** Descend to next dungeon depth */
+  descendFloor(): void {
+    this.depth++;
+    const player = this.playerId ? this.world.getEntity(this.playerId) : undefined;
+    if (!player) return;
+
+    // Reset renderer exploration for the new floor
+    if (this.renderer && 'resetExploration' in (this.renderer as any)) {
+      (this.renderer as any).resetExploration();
+    }
+
+    // Keep player and player's equipped items, destroy everything else
+    const eq = player.components.get('Equipment') as { slots: Record<string, EntityId | null> } | undefined;
+    const equippedItemIds = new Set(Object.values(eq?.slots ?? {}).filter(Boolean));
+
+    for (const ent of this.world.allEntities()) {
+      if (ent.id !== player.id && !equippedItemIds.has(ent.id)) {
+        this.world.queueDestroy(ent.id);
+      }
+    }
+    this.world.flush();
+
+    // Generate fresh map for new depth
+    this.map = generateMap(this.cartridge);
+    const available = [...this.map.floorTiles];
+    this.shuffleArray(available);
+
+    // Place player at first floor tile
+    let spawnIdx = 0;
+    if (available[spawnIdx]) {
+      const pPos = available[spawnIdx++];
+      player.components.set('Position', { x: pPos.x, y: pPos.y });
+    }
+
+    // Spawn stairs for this floor
+    if (this.map.stairsPosition) {
+      this.world.spawn('stairs', {
+        Position: { x: this.map.stairsPosition.x, y: this.map.stairsPosition.y },
+      });
+    }
+
+    // Spawn enemies from spawn_table (with depth scaling)
+    if (this.cartridge.world_gen.spawn_table) {
+      for (const entry of this.cartridge.world_gen.spawn_table) {
+        const count = entry.max_per_level ?? 5;
+        for (let i = 0; i < count && spawnIdx < available.length; i++) {
+          if (Math.random() < entry.weight) {
+            const pos = available[spawnIdx++];
+            const enemy = this.world.spawn(entry.blueprint, {
+              Position: { x: pos.x, y: pos.y },
+            });
+            const eHealth = enemy.components.get('Health') as { current: number; max: number } | undefined;
+            if (eHealth && this.depth > 1) {
+              const bonus = (this.depth - 1) * 5;
+              eHealth.max += bonus;
+              eHealth.current += bonus;
+            }
+          }
+        }
+      }
+    }
+
+    this.logCallback(`=== DESCENDED TO DEPTH ${this.depth} ===`);
+    this.logCallback(`Air grows colder. Deeper threats lurk in the shadows.`);
+    sound.playItem();
+    this.render();
+    this.statsCallback(player);
+  }
+
+  getDepth(): number { return this.depth; }
+  getInventoryService(): InventoryService { return this.inventory; }
+
+  equipItem(slot: string, item: Entity): void {
+    const player = this.getPlayer();
+    if (!player) return;
+    this.inventory.equip(player, item, slot);
+    this.statsCallback(player);
+  }
+
+  unequipItem(slot: string): void {
+    const player = this.getPlayer();
+    if (!player) return;
+    this.inventory.unequip(player, slot);
+    this.statsCallback(player);
+  }
+
+  getEquippedItems(): Record<string, Entity | undefined> {
+    const player = this.getPlayer();
+    if (!player) return {};
+    const eq = player.components.get('Equipment') as { slots: Record<string, EntityId | null> } | undefined;
+    if (!eq) return {};
+    const result: Record<string, Entity | undefined> = {};
+    for (const [slot, id] of Object.entries(eq.slots)) {
+      result[slot] = id ? this.world.getEntity(id) : undefined;
+    }
+    return result;
   }
 
   restart(): void {

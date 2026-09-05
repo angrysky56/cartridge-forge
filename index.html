@@ -18,6 +18,7 @@
     <div class="header-controls">
       <span class="selector-label">Cartridge:</span>
       <select id="cartridge-select" class="cyber-select" aria-label="Select Game Cartridge">
+        <option value="/cartridges/dungeon_of_the_forgotten.json">Dungeon of the Forgotten (Fantasy BSP)</option>
         <option value="/cartridges/abyssal_protocol.json">Abyssal Protocol (Sci-Fi Mech)</option>
         <option value="/cartridges/gladiator_gen.json">Gladiator Gen (Breeding & Arena)</option>
         <option value="/cartridges/rpg_test.json">Forge RPG Benchmark (Equipment & Combat)</option>
@@ -30,9 +31,11 @@
         <input type="file" id="cartridge-input" accept=".json" aria-label="Upload Cartridge JSON" />
       </div>
 
+      <button id="btn-fov" class="cyber-btn active" title="Toggle Tactical Line of Sight Fog of War">🔦 FOV ON</button>
       <button id="btn-sfx" class="cyber-btn active" title="Toggle 8-bit Sound Effects">🔊 SFX ON</button>
       <button id="btn-crt" class="cyber-btn" title="Toggle Retro CRT Scanlines & Phosphor Glow">📺 CRT OFF</button>
       <button id="btn-restart" class="cyber-btn" title="Restart Current Game Session">↺ RESTART</button>
+      <button id="btn-studio" class="cyber-btn studio-btn" title="Open Forgemaster AI Studio & Validator">⚡ FORGEMASTER AI</button>
     </div>
   </header>
 
@@ -83,6 +86,30 @@
           <div class="stat-cell">
             <div class="stat-label">COORDINATES</div>
             <div id="stat-pos" class="stat-value">12, 14</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Equipment Loadout Panel -->
+      <section class="hud-panel">
+        <div class="panel-title">
+          <span>EQUIPMENT LOADOUT</span>
+          <span class="system-badge">GEAR</span>
+        </div>
+        <div class="equipment-list">
+          <div class="equipment-slot" id="slot-main_hand">
+            <span class="slot-icon">⚔</span>
+            <div class="slot-info">
+              <span class="slot-label">MAIN HAND</span>
+              <span class="slot-value" id="slot-val-main_hand">Standard / Bare</span>
+            </div>
+          </div>
+          <div class="equipment-slot" id="slot-off_hand">
+            <span class="slot-icon">🛡</span>
+            <div class="slot-info">
+              <span class="slot-label">OFF HAND</span>
+              <span class="slot-value" id="slot-val-off_hand">None</span>
+            </div>
           </div>
         </div>
       </section>
@@ -142,6 +169,7 @@
       <div class="viewport-toolbar">
         <div class="viewport-info">
           <div class="info-stat">GAME: <strong id="game-title">Abyssal Protocol</strong></div>
+          <div class="info-stat">FLOOR: <strong id="floor-depth" style="color: #ffb300;">B1</strong></div>
           <div class="info-stat">DIMENSIONS: <strong id="map-dims">60 × 40</strong></div>
           <div class="info-stat">TURN: <strong id="turn-counter">1</strong></div>
         </div>
@@ -193,6 +221,39 @@
       </section>
     </aside>
   </main>
+
+  <!-- Forgemaster AI Studio Modal -->
+  <div id="studio-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="power-led" style="box-shadow: 0 0 10px #00f0ff; background: #00f0ff;"></div>
+          <span>FORGEMASTER <strong>AI STUDIO</strong></span>
+          <span class="system-badge highlight">ZOD SCHEMA ENGINE</span>
+        </div>
+        <button id="btn-close-studio" class="modal-close-btn" title="Close Studio">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="studio-actions-bar">
+          <button id="btn-copy-prompt" class="cyber-btn studio-action" title="Copy LLM system instructions to clipboard">📋 Copy AI Prompt</button>
+          <button id="btn-sample-dungeon" class="cyber-btn" title="Load Fantasy Dungeon Sample">🏰 Fantasy Dungeon</button>
+          <button id="btn-sample-mech" class="cyber-btn" title="Load Sci-Fi Mech Sample">🤖 Sci-Fi Mech</button>
+          <button id="btn-sample-gladiator" class="cyber-btn" title="Load Genetics Arena Sample">🧬 Genetics Arena</button>
+        </div>
+        <div class="editor-section">
+          <label class="editor-label" for="studio-json-input">Cartridge JSON Specification:</label>
+          <textarea id="studio-json-input" class="cyber-textarea" placeholder="Paste generated Cartridge JSON here..."></textarea>
+        </div>
+        <div id="studio-validation-status" class="validation-status ready">
+          Ready. Paste or load any cartridge JSON above, validate against Zod, and click Flash & Play!
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-validate-studio" class="cyber-btn" title="Validate JSON syntax and schema">🔍 Validate JSON</button>
+        <button id="btn-flash-studio" class="cyber-btn primary-flash" title="Flash Cartridge to Virtual Console">🚀 Flash & Play</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

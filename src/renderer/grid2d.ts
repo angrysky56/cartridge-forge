@@ -7,6 +7,7 @@
 import type { Entity } from '../ecs/types.js';
 import { type GameMap, TileType } from '../runtime/mapgen.js';
 import type { IRenderer, RenderConfig } from './types.js';
+import { computeFOV } from './fov.js';
 
 interface FloatingText {
   id: number;
@@ -30,6 +31,10 @@ export class Grid2DRenderer implements IRenderer {
   private hoveredTile: { x: number; y: number } | null = null;
   private floatingTexts: FloatingText[] = [];
   private nextTextId = 0;
+  private fovEnabled = true;
+  private exploredTiles = new Set<string>();
+  private visibleTiles = new Set<string>();
+
 
   constructor(config: RenderConfig) {
     const ctx = config.canvas.getContext('2d');
@@ -51,6 +56,20 @@ export class Grid2DRenderer implements IRenderer {
     this.fontFamily = config.fontFamily || "'JetBrains Mono', monospace";
     this.viewCols = Math.floor(config.canvas.width / this.cellSize);
     this.viewRows = Math.floor(config.canvas.height / this.cellSize);
+  }
+
+  toggleFov(): boolean {
+    this.fovEnabled = !this.fovEnabled;
+    return this.fovEnabled;
+  }
+
+  isFovEnabled(): boolean {
+    return this.fovEnabled;
+  }
+
+  resetExploration(): void {
+    this.exploredTiles.clear();
+    this.visibleTiles.clear();
   }
 
   setHoveredTile(tile: { x: number; y: number } | null): void {
@@ -87,11 +106,36 @@ export class Grid2DRenderer implements IRenderer {
     const canvasHeight = ctx.canvas.height;
     const now = performance.now();
 
-    // 1. Clear background
+    // 1. Calculate Field of View from Player
+    if (this.fovEnabled) {
+      const player = entities.find(e => {
+        const faction = e.components.get('Faction') as { id: string } | undefined;
+        return faction?.id === 'player';
+      });
+      if (player) {
+        const pPos = player.components.get('Position') as { x: number; y: number } | undefined;
+        if (pPos) {
+          const fov = computeFOV(
+            pPos.x,
+            pPos.y,
+            8,
+            (x, y) => map.tiles[y]?.[x] === TileType.Wall,
+            map.width,
+            map.height,
+          );
+          this.visibleTiles = fov.visible;
+          for (const coord of fov.visible) {
+            this.exploredTiles.add(coord);
+          }
+        }
+      }
+    }
+
+    // 2. Clear background
     ctx.fillStyle = this.palette.bg || '#0a0a12';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // 2. Draw Map Tiles
+    // 3. Draw Map Tiles
     for (let row = 0; row < this.viewRows; row++) {
       for (let col = 0; col < this.viewCols; col++) {
         const mapX = col + this.cameraX;
@@ -101,85 +145,105 @@ export class Grid2DRenderer implements IRenderer {
           continue;
         }
 
+        const coordKey = `${mapX},${mapY}`;
+        const isVisible = !this.fovEnabled || this.visibleTiles.has(coordKey);
+        const isExplored = !this.fovEnabled || this.exploredTiles.has(coordKey);
+
+        if (!isExplored) {
+          // Unexplored territory remains black
+          continue;
+        }
+
         const tile = map.tiles[mapY][mapX];
         const px = col * cellSize;
         const py = row * cellSize;
 
         if (tile === TileType.Wall) {
           // Beveled procedural wall panel
-          ctx.fillStyle = this.palette.wall || '#1e2230';
+          ctx.fillStyle = isVisible ? (this.palette.wall || '#1e2230') : '#12141f';
           ctx.fillRect(px, py, cellSize, cellSize);
 
-          // Top and left bevel highlights
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-          ctx.fillRect(px, py, cellSize, 2);
-          ctx.fillRect(px, py, 2, cellSize);
+          if (isVisible) {
+            // Top and left bevel highlights
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.fillRect(px, py, cellSize, 2);
+            ctx.fillRect(px, py, 2, cellSize);
 
-          // Bottom and right shadow borders
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-          ctx.fillRect(px, py + cellSize - 2, cellSize, 2);
-          ctx.fillRect(px + cellSize - 2, py, 2, cellSize);
+            // Bottom and right shadow borders
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fillRect(px, py + cellSize - 2, cellSize, 2);
+            ctx.fillRect(px + cellSize - 2, py, 2, cellSize);
+          }
 
           // Centered subtle wall rune/glyph
           ctx.font = `${Math.floor(cellSize * 0.48)}px ${this.fontFamily}`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = this.palette.wall_glyph || '#4a5578';
+          ctx.fillStyle = isVisible ? (this.palette.wall_glyph || '#4a5578') : '#282f45';
           ctx.fillText(map.wallGlyph || '#', px + cellSize / 2, py + cellSize / 2);
         } else {
           // Floor tile with subtle grid pattern
-          ctx.fillStyle = this.palette.floor || '#0e1017';
+          ctx.fillStyle = isVisible ? (this.palette.floor || '#0e1017') : '#08090d';
           ctx.fillRect(px, py, cellSize, cellSize);
 
-          // Subtle floor perimeter grid line
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+          if (isVisible) {
+            // Subtle floor perimeter grid line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
 
-          // Subtle floor dot at center
-          ctx.fillStyle = this.palette.floor_glyph || '#252a3d';
-          ctx.fillRect(px + cellSize / 2 - 1, py + cellSize / 2 - 1, 2, 2);
+            // Subtle floor dot at center
+            ctx.fillStyle = this.palette.floor_glyph || '#252a3d';
+            ctx.fillRect(px + cellSize / 2 - 1, py + cellSize / 2 - 1, 2, 2);
+          }
+        }
+
+        // Explored but out-of-sight fog shroud
+        if (isExplored && !isVisible) {
+          ctx.fillStyle = 'rgba(6, 8, 16, 0.6)';
+          ctx.fillRect(px, py, cellSize, cellSize);
         }
       }
     }
 
-    // 3. Draw Hover Reticle
+    // 4. Draw Hover Reticle
     if (this.hoveredTile) {
-      const hCol = this.hoveredTile.x - this.cameraX;
-      const hRow = this.hoveredTile.y - this.cameraY;
-      if (hCol >= 0 && hCol < this.viewCols && hRow >= 0 && hRow < this.viewRows) {
-        const hx = hCol * cellSize;
-        const hy = hRow * cellSize;
+      const hoverCoordKey = `${this.hoveredTile.x},${this.hoveredTile.y}`;
+      const canSeeHover = !this.fovEnabled || this.exploredTiles.has(hoverCoordKey);
 
-        ctx.fillStyle = 'rgba(0, 255, 200, 0.12)';
-        ctx.fillRect(hx, hy, cellSize, cellSize);
+      if (canSeeHover) {
+        const hCol = this.hoveredTile.x - this.cameraX;
+        const hRow = this.hoveredTile.y - this.cameraY;
+        if (hCol >= 0 && hCol < this.viewCols && hRow >= 0 && hRow < this.viewRows) {
+          const hx = hCol * cellSize;
+          const hy = hRow * cellSize;
 
-        ctx.strokeStyle = '#00ffc8';
-        ctx.lineWidth = 2;
-        // Draw corner brackets
-        const bracketLen = 6;
-        ctx.beginPath();
-        // Top-left
-        ctx.moveTo(hx, hy + bracketLen);
-        ctx.lineTo(hx, hy);
-        ctx.lineTo(hx + bracketLen, hy);
-        // Top-right
-        ctx.moveTo(hx + cellSize - bracketLen, hy);
-        ctx.lineTo(hx + cellSize, hy);
-        ctx.lineTo(hx + cellSize, hy + bracketLen);
-        // Bottom-right
-        ctx.moveTo(hx + cellSize, hy + cellSize - bracketLen);
-        ctx.lineTo(hx + cellSize, hy + cellSize);
-        ctx.lineTo(hx + cellSize - bracketLen, hy + cellSize);
-        // Bottom-left
-        ctx.moveTo(hx + bracketLen, hy + cellSize);
-        ctx.lineTo(hx, hy + cellSize);
-        ctx.lineTo(hx, hy + cellSize - bracketLen);
-        ctx.stroke();
+          ctx.fillStyle = 'rgba(0, 255, 200, 0.12)';
+          ctx.fillRect(hx, hy, cellSize, cellSize);
+
+          ctx.strokeStyle = '#00ffc8';
+          ctx.lineWidth = 2;
+          // Draw corner brackets
+          const bracketLen = 6;
+          ctx.beginPath();
+          ctx.moveTo(hx, hy + bracketLen);
+          ctx.lineTo(hx, hy);
+          ctx.lineTo(hx + bracketLen, hy);
+          ctx.moveTo(hx + cellSize - bracketLen, hy);
+          ctx.lineTo(hx + cellSize, hy);
+          ctx.lineTo(hx + cellSize, hy + bracketLen);
+          ctx.moveTo(hx + cellSize, hy + cellSize - bracketLen);
+          ctx.lineTo(hx + cellSize, hy + cellSize);
+          ctx.lineTo(hx + cellSize - bracketLen, hy + cellSize);
+          ctx.moveTo(hx + bracketLen, hy + cellSize);
+          ctx.lineTo(hx, hy + cellSize);
+          ctx.lineTo(hx, hy + cellSize - bracketLen);
+          ctx.stroke();
+        }
       }
     }
 
-    // 4. Draw Entities
+    // 5. Draw Entities
     const sorted = [...entities]
       .filter(e => e.components.has('Renderable') && e.components.has('Position'))
       .sort((a, b) => {
@@ -199,6 +263,12 @@ export class Grid2DRenderer implements IRenderer {
       };
       const faction = entity.components.get('Faction') as { id: string } | undefined;
       const health = entity.components.get('Health') as { current: number; max: number } | undefined;
+      const isPlayer = faction?.id === 'player';
+
+      // If FOV is enabled, non-player entities are only visible if their tile is in the line-of-sight
+      if (this.fovEnabled && !isPlayer && !this.visibleTiles.has(`${pos.x},${pos.y}`)) {
+        continue;
+      }
 
       const screenCol = pos.x - this.cameraX;
       const screenRow = pos.y - this.cameraY;
@@ -210,7 +280,6 @@ export class Grid2DRenderer implements IRenderer {
 
       const px = screenCol * cellSize;
       const py = screenRow * cellSize;
-      const isPlayer = faction?.id === 'player';
 
       if (isPlayer) {
         playerScreenX = px + cellSize / 2;

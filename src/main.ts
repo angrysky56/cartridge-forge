@@ -7,6 +7,8 @@
 import { Game } from './runtime/game.js';
 import { loadCartridge } from './cartridge/loader.js';
 import { sound } from './runtime/audio.js';
+import { FORGEMASTER_SYSTEM_PROMPT } from './studio/prompt.js';
+import { validateCartridgeJson } from './studio/validator.js';
 import type { Entity } from './ecs/types.js';
 import type { Cartridge } from './cartridge/schema.js';
 
@@ -15,14 +17,17 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const combatLog = document.getElementById('combat-log') as HTMLDivElement;
 const cartridgeSelect = document.getElementById('cartridge-select') as HTMLSelectElement;
 const cartridgeInput = document.getElementById('cartridge-input') as HTMLInputElement;
+const btnFov = document.getElementById('btn-fov') as HTMLButtonElement;
 const btnSfx = document.getElementById('btn-sfx') as HTMLButtonElement;
 const btnCrt = document.getElementById('btn-crt') as HTMLButtonElement;
 const btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
+const btnStudio = document.getElementById('btn-studio') as HTMLButtonElement;
 const btnClearLog = document.getElementById('btn-clear-log') as HTMLButtonElement;
 const canvasWrapper = document.querySelector('.canvas-wrapper') as HTMLDivElement;
 
 // HUD Elements
 const gameTitleEl = document.getElementById('game-title') as HTMLElement;
+const floorDepthEl = document.getElementById('floor-depth') as HTMLElement;
 const mapDimsEl = document.getElementById('map-dims') as HTMLElement;
 const turnCounterEl = document.getElementById('turn-counter') as HTMLElement;
 const tileCoordsEl = document.getElementById('tile-coords') as HTMLElement;
@@ -37,6 +42,22 @@ const armorTextEl = document.getElementById('armor-text') as HTMLElement;
 const armorBarEl = document.getElementById('armor-bar') as HTMLElement;
 const statStrEl = document.getElementById('stat-str') as HTMLElement;
 const statPosEl = document.getElementById('stat-pos') as HTMLElement;
+
+// Equipment Slots
+const slotMainHandEl = document.getElementById('slot-val-main_hand') as HTMLElement;
+const slotOffHandEl = document.getElementById('slot-val-off_hand') as HTMLElement;
+
+// Studio Modal Elements
+const studioModal = document.getElementById('studio-modal') as HTMLElement;
+const btnCloseStudio = document.getElementById('btn-close-studio') as HTMLButtonElement;
+const btnCopyPrompt = document.getElementById('btn-copy-prompt') as HTMLButtonElement;
+const btnSampleDungeon = document.getElementById('btn-sample-dungeon') as HTMLButtonElement;
+const btnSampleMech = document.getElementById('btn-sample-mech') as HTMLButtonElement;
+const btnSampleGladiator = document.getElementById('btn-sample-gladiator') as HTMLButtonElement;
+const studioJsonInput = document.getElementById('studio-json-input') as HTMLTextAreaElement;
+const studioValidationStatus = document.getElementById('studio-validation-status') as HTMLElement;
+const btnValidateStudio = document.getElementById('btn-validate-studio') as HTMLButtonElement;
+const btnFlashStudio = document.getElementById('btn-flash-studio') as HTMLButtonElement;
 
 // Inspector & Legend Elements
 const inspectorGlyph = document.getElementById('inspector-glyph') as HTMLElement;
@@ -116,12 +137,54 @@ function updateStats(player: Entity | undefined): void {
     }
   }
 
-  // Strength & Armor Stats
+  // Depth Indicator
+  if (floorDepthEl) {
+    floorDepthEl.textContent = `B${game.getDepth()}`;
+  }
+
+  // Strength & Armor Stats with Equipment Modifiers
+  const mods = game.getInventoryService().getEquipmentModifiers(player);
   if (combatStats) {
-    statStrEl.textContent = String(combatStats.strength ?? combatStats.str ?? '--');
-    const armorVal = combatStats.armor ?? combatStats.toughness ?? combatStats.defense ?? 0;
-    armorTextEl.textContent = `${armorVal} PTS`;
-    armorBarEl.style.width = `${Math.min(100, armorVal * 10)}%`;
+    const baseStr = combatStats.strength ?? combatStats.str ?? 10;
+    const modStr = mods['CombatStats.strength'] || 0;
+    statStrEl.textContent = modStr > 0 ? `${baseStr + modStr} (+${modStr})` : String(baseStr);
+
+    const baseArmor = combatStats.armor ?? combatStats.toughness ?? combatStats.defense ?? 0;
+    const modArmor = mods['CombatStats.armor'] || 0;
+    const totalArmor = baseArmor + modArmor;
+    armorTextEl.textContent = modArmor > 0 ? `${totalArmor} PTS (+${modArmor})` : `${totalArmor} PTS`;
+    armorBarEl.style.width = `${Math.min(100, totalArmor * 10)}%`;
+  }
+
+  // Equipment Slots Rack
+  const equipped = game.getEquippedItems();
+  const mainHandItem = equipped['main_hand'];
+  const offHandItem = equipped['off_hand'];
+
+  if (slotMainHandEl) {
+    if (mainHandItem) {
+      const name = (mainHandItem.components.get('Description') as any)?.name || 'Weapon';
+      const eq = mainHandItem.components.get('Equippable') as any;
+      const mod = eq?.modifiers ? Object.entries(eq.modifiers).map(([k, v]) => `+${v} ${k.split('.').pop()}`).join(', ') : '';
+      slotMainHandEl.textContent = `${name}${mod ? ` (${mod})` : ''}`;
+      slotMainHandEl.style.color = 'var(--cyan-glow)';
+    } else {
+      slotMainHandEl.textContent = 'Bare / Unarmed';
+      slotMainHandEl.style.color = 'var(--text-muted)';
+    }
+  }
+
+  if (slotOffHandEl) {
+    if (offHandItem) {
+      const name = (offHandItem.components.get('Description') as any)?.name || 'Shield';
+      const eq = offHandItem.components.get('Equippable') as any;
+      const mod = eq?.modifiers ? Object.entries(eq.modifiers).map(([k, v]) => `+${v} ${k.split('.').pop()}`).join(', ') : '';
+      slotOffHandEl.textContent = `${name}${mod ? ` (${mod})` : ''}`;
+      slotOffHandEl.style.color = 'var(--cyan-glow)';
+    } else {
+      slotOffHandEl.textContent = 'None';
+      slotOffHandEl.style.color = 'var(--text-muted)';
+    }
   }
 
   // Coordinates
@@ -341,14 +404,25 @@ canvas.addEventListener('click', (e) => {
   }
 });
 
-// 7. CRT Toggle
+// 7. Tactical FOV Toggle
+btnFov.addEventListener('click', () => {
+  const renderer = game.getRenderer();
+  if ('toggleFov' in (renderer as any)) {
+    const isEnabled = (renderer as any).toggleFov();
+    btnFov.textContent = isEnabled ? '🔦 FOV ON' : '🔦 FOV OFF';
+    btnFov.classList.toggle('active', isEnabled);
+    sound.playMove();
+  }
+});
+
+// 8. CRT Toggle
 btnCrt.addEventListener('click', () => {
   const active = canvasWrapper.classList.toggle('crt-active');
   btnCrt.textContent = active ? '📺 CRT ON' : '📺 CRT OFF';
   btnCrt.classList.toggle('active', active);
 });
 
-// 8. Sound SFX Toggle
+// 9. Sound SFX Toggle
 btnSfx.addEventListener('click', () => {
   const isMuted = sound.toggleMute();
   btnSfx.textContent = isMuted ? '🔇 MUTED' : '🔊 SFX ON';
@@ -356,16 +430,126 @@ btnSfx.addEventListener('click', () => {
   if (!isMuted) sound.playItem();
 });
 
-// 9. Restart Button
+// 10. Restart Button
 btnRestart.addEventListener('click', () => {
   game.restart();
   sound.playItem();
   logMessage('--- SESSION RESTARTED ---');
 });
 
-// 10. Clear Log Button
+// 11. Clear Log Button
 btnClearLog.addEventListener('click', () => {
   combatLog.innerHTML = '';
+});
+
+// 12. Forgemaster AI Studio Modal Wiring
+btnStudio.addEventListener('click', () => {
+  studioModal.style.display = 'flex';
+  if (!studioJsonInput.value) {
+    // Load current cartridge as default in editor
+    const c = game.getCartridge();
+    if (c) studioJsonInput.value = JSON.stringify(c, null, 2);
+  }
+});
+
+btnCloseStudio.addEventListener('click', () => {
+  studioModal.style.display = 'none';
+});
+
+studioModal.addEventListener('click', (e) => {
+  if (e.target === studioModal) {
+    studioModal.style.display = 'none';
+  }
+});
+
+btnCopyPrompt.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(FORGEMASTER_SYSTEM_PROMPT);
+    const originalText = btnCopyPrompt.textContent;
+    btnCopyPrompt.textContent = '✓ Copied Prompt!';
+    sound.playItem();
+    setTimeout(() => {
+      btnCopyPrompt.textContent = originalText;
+    }, 2000);
+  } catch {
+    // Fallback if clipboard API restricted
+    studioJsonInput.value = FORGEMASTER_SYSTEM_PROMPT;
+    logMessage('Prompt loaded directly into editor.');
+  }
+});
+
+async function loadSampleIntoStudio(url: string): Promise<void> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    studioJsonInput.value = JSON.stringify(json, null, 2);
+    validateStudioContent();
+    sound.playMove();
+  } catch (err) {
+    studioValidationStatus.className = 'validation-status error';
+    studioValidationStatus.textContent = `Error loading sample: ${(err as Error).message}`;
+  }
+}
+
+btnSampleDungeon.addEventListener('click', () => {
+  loadSampleIntoStudio('/cartridges/dungeon_of_the_forgotten.json');
+});
+
+btnSampleMech.addEventListener('click', () => {
+  loadSampleIntoStudio('/cartridges/abyssal_protocol.json');
+});
+
+btnSampleGladiator.addEventListener('click', () => {
+  loadSampleIntoStudio('/cartridges/gladiator_gen.json');
+});
+
+function validateStudioContent(): boolean {
+  const content = studioJsonInput.value.trim();
+  if (!content) {
+    studioValidationStatus.className = 'validation-status ready';
+    studioValidationStatus.textContent = 'Paste or write cartridge JSON above.';
+    return false;
+  }
+
+  const result = validateCartridgeJson(content);
+  if (result.valid) {
+    studioValidationStatus.className = 'validation-status success';
+    studioValidationStatus.textContent = `✓ ${result.summary} (Verified with Zod schema)`;
+    return true;
+  } else {
+    studioValidationStatus.className = 'validation-status error';
+    const errorDetails = result.errors.slice(0, 4).map(e => `[${e.path}]: ${e.message}`).join(' | ');
+    studioValidationStatus.textContent = `✗ ${result.summary} — ${errorDetails}`;
+    return false;
+  }
+}
+
+btnValidateStudio.addEventListener('click', () => {
+  const valid = validateStudioContent();
+  if (valid) sound.playItem();
+  else sound.playHit();
+});
+
+btnFlashStudio.addEventListener('click', () => {
+  const valid = validateStudioContent();
+  if (!valid) {
+    sound.playHit();
+    return;
+  }
+
+  const result = validateCartridgeJson(studioJsonInput.value.trim());
+  if (result.valid && result.cartridge) {
+    const c = result.cartridge;
+    game.loadCartridge(c);
+    gameTitleEl.textContent = c.meta.title;
+    mapDimsEl.textContent = `${c.world_gen?.width || 0} × ${c.world_gen?.height || 0}`;
+    playerNameEl.textContent = c.meta.title;
+    updateFieldLegend(c);
+    studioModal.style.display = 'none';
+    sound.playItem();
+    logMessage(`🚀 FLASHED & LOADED AI CARTRIDGE: "${c.meta.title}"`);
+  }
 });
 
 // --- Continuous Animation Loop for Floating Damage Numbers ---
@@ -376,4 +560,4 @@ function animationLoop(): void {
 requestAnimationFrame(animationLoop);
 
 // --- Initial Auto-Load ---
-loadCartridgeFromUrl('/cartridges/abyssal_protocol.json');
+loadCartridgeFromUrl('/cartridges/dungeon_of_the_forgotten.json');
