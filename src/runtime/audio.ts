@@ -211,6 +211,41 @@ export class SoundFX {
     });
   }
 
+  /** Epic boss victory fanfare */
+  playVictory(): void {
+    if (this.muted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const chords = [
+      [261.63, 329.63, 392.00], // C major
+      [293.66, 369.99, 440.00], // D major
+      [329.63, 415.30, 493.88], // E major
+      [523.25, 659.25, 783.99], // C high major
+    ];
+
+    chords.forEach((chord, chordIdx) => {
+      const startTime = now + chordIdx * 0.22;
+      chord.forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        gain.gain.setValueAtTime(0.16, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.48);
+      });
+    });
+  }
+
   /** Tactical ability swoosh / shield bash impact */
   playAbility(): void {
     if (this.muted) return;
@@ -233,6 +268,132 @@ export class SoundFX {
 
     osc.start(now);
     osc.stop(now + 0.17);
+  }
+
+  /** Fireball spell explosion */
+  playSpellFire(): void {
+    if (this.muted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(260, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.35);
+
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.36);
+  }
+
+  /** Lightning bolt crackle */
+  playSpellLightning(): void {
+    if (this.muted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'square';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.setValueAtTime(440, now + 0.05);
+    osc.frequency.setValueAtTime(1200, now + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.22);
+
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.23);
+  }
+
+  /** Frost nova freezing chime */
+  playSpellFrost(): void {
+    if (this.muted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [659.25, 880, 1174.66, 1760].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = now + idx * 0.04;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.12, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.26);
+    });
+  }
+
+  /** Gold coin pickup clink */
+  playGold(): void {
+    if (this.muted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [987.77, 1318.51].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = now + idx * 0.06;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.15, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.12);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.13);
+    });
+  }
+
+  /** Swarm horn / alarm pulse */
+  playHorn(): void {
+    if (this.muted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(110, now);
+    osc.frequency.setValueAtTime(130.81, now + 0.15);
+    osc.frequency.setValueAtTime(98, now + 0.35);
+
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.62);
   }
 }
 

@@ -33,8 +33,8 @@
   "blueprints": {
     "player": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "@", "color": "#00ffcc", "layer": 3 },
-      "Glyph": { "char": "@", "color": "#00ffcc" },
+      "Renderable": { "glyph": "🧙", "color": "#00ffcc", "layer": 3 },
+      "Glyph": { "char": "🧙", "color": "#00ffcc" },
       "Health": { "current": 120, "max": 120 },
       "Faction": { "id": "player" },
       "CombatStats": { "strength": 12, "armor": 3 },
@@ -43,8 +43,8 @@
     },
     "goblin": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "g", "color": "#44ff66", "layer": 2 },
-      "Glyph": { "char": "g", "color": "#44ff66" },
+      "Renderable": { "glyph": "👺", "color": "#44ff66", "layer": 2 },
+      "Glyph": { "char": "👺", "color": "#44ff66" },
       "Health": { "current": 25, "max": 25 },
       "Faction": { "id": "monster" },
       "CombatStats": { "strength": 8, "armor": 1 },
@@ -52,8 +52,8 @@
     },
     "skeleton": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "s", "color": "#e0e6f0", "layer": 2 },
-      "Glyph": { "char": "s", "color": "#e0e6f0" },
+      "Renderable": { "glyph": "💀", "color": "#e0e6f0", "layer": 2 },
+      "Glyph": { "char": "💀", "color": "#e0e6f0" },
       "Health": { "current": 35, "max": 35 },
       "Faction": { "id": "monster" },
       "CombatStats": { "strength": 12, "armor": 2 },
@@ -61,8 +61,8 @@
     },
     "orc_guard": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "O", "color": "#ff3355", "layer": 2 },
-      "Glyph": { "char": "O", "color": "#ff3355" },
+      "Renderable": { "glyph": "👹", "color": "#ff3355", "layer": 2 },
+      "Glyph": { "char": "👹", "color": "#ff3355" },
       "Health": { "current": 65, "max": 65 },
       "Faction": { "id": "monster" },
       "CombatStats": { "strength": 17, "armor": 4 },
@@ -70,8 +70,8 @@
     },
     "broadsword": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "/", "color": "#ffcc00", "layer": 1 },
-      "Glyph": { "char": "/", "color": "#ffcc00" },
+      "Renderable": { "glyph": "⚔️", "color": "#ffcc00", "layer": 1 },
+      "Glyph": { "char": "⚔️", "color": "#ffcc00" },
       "Equippable": {
         "slot": "main_hand",
         "modifiers": { "CombatStats.strength": 7 }
@@ -80,8 +80,8 @@
     },
     "iron_shield": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "]", "color": "#00f0ff", "layer": 1 },
-      "Glyph": { "char": "]", "color": "#00f0ff" },
+      "Renderable": { "glyph": "🛡️", "color": "#00f0ff", "layer": 1 },
+      "Glyph": { "char": "🛡️", "color": "#00f0ff" },
       "Equippable": {
         "slot": "off_hand",
         "modifiers": { "CombatStats.armor": 4 }
@@ -90,21 +90,21 @@
     },
     "health_potion": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "!", "color": "#00f0ff", "layer": 1 },
-      "Glyph": { "char": "!", "color": "#00f0ff" },
+      "Renderable": { "glyph": "🧪", "color": "#00f0ff", "layer": 1 },
+      "Glyph": { "char": "🧪", "color": "#00f0ff" },
       "HealthPack": { "healAmount": 35 },
       "Description": { "name": "Health Elixir", "text": "Restores vital health." }
     },
     "corpse": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": "%", "color": "#632d42", "layer": 0 },
-      "Glyph": { "char": "%", "color": "#632d42" },
+      "Renderable": { "glyph": "🦴", "color": "#632d42", "layer": 0 },
+      "Glyph": { "char": "🦴", "color": "#632d42" },
       "Description": { "name": "Monster Remains", "text": "Scattered bones of a defeated enemy." }
     },
     "stairs": {
       "Position": { "x": 0, "y": 0 },
-      "Renderable": { "glyph": ">", "color": "#ffd700", "layer": 1 },
-      "Glyph": { "char": ">", "color": "#ffd700" },
+      "Renderable": { "glyph": "🪜", "color": "#ffd700", "layer": 1 },
+      "Glyph": { "char": "🪜", "color": "#ffd700" },
       "Description": { "name": "Dungeon Stairs", "text": "Descends to the next floor of the labyrinth." }
     }
   },
@@ -147,8 +147,8 @@
     "algorithm": "bsp_rooms",
     "room_min_size": 5,
     "room_max_size": 9,
-    "wall_glyph": "#",
-    "floor_glyph": ".",
+    "wall_glyph": "🧱",
+    "floor_glyph": "▫️",
     "wall_density": 0.45,
     "spawn_table": [
       { "blueprint": "goblin", "weight": 0.4, "max_per_level": 5 },

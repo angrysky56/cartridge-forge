@@ -1023,3 +1023,345 @@ select.cyber-select:hover, select.cyber-select:focus {
   text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);
 }
 
+/* --- Boss Encounter HUD --- */
+.boss-hud {
+  width: 100%;
+  max-width: 840px;
+  background: linear-gradient(180deg, rgba(20, 5, 10, 0.95), rgba(10, 5, 8, 0.9));
+  border: 1px solid rgba(255, 0, 85, 0.5);
+  border-radius: 8px 8px 0 0;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 0 20px rgba(255, 0, 85, 0.3), inset 0 0 15px rgba(255, 0, 85, 0.1);
+  margin-bottom: 2px;
+  transition: all 0.3s ease;
+}
+
+.boss-hud.hidden {
+  display: none !important;
+}
+
+.boss-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.boss-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 0 8px #ff0055);
+}
+
+.boss-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ff3366;
+  text-shadow: 0 0 10px rgba(255, 0, 85, 0.7);
+  flex-grow: 1;
+  margin-left: 10px;
+}
+
+.boss-hp {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd700;
+}
+
+.boss-bar-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.boss-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0055, #ffaa00);
+  box-shadow: 0 0 12px rgba(255, 0, 85, 0.8);
+  transition: width 0.25s ease-out;
+}
+
+/* --- Arcade Hotbar --- */
+.arcade-hotbar {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 840px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.hotbar-btn {
+  flex: 1;
+  min-width: 80px;
+  background: var(--bg-darker);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.hotbar-btn:hover {
+  border-color: var(--cyan-glow);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.hotbar-btn.spell:hover {
+  border-color: #ff7700;
+  box-shadow: 0 0 10px rgba(255, 119, 0, 0.4);
+}
+
+.hotbar-btn.item:hover {
+  border-color: #00ffaa;
+  box-shadow: 0 0 10px rgba(0, 255, 170, 0.4);
+}
+
+.hotbar-btn.pack {
+  border-color: rgba(255, 215, 0, 0.4);
+}
+
+.hotbar-btn.pack:hover {
+  border-color: #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.hotbar-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* --- Set Bonuses Container --- */
+.set-bonuses-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.set-bonus-badge {
+  padding: 6px 10px;
+  background: rgba(0, 255, 204, 0.08);
+  border: 1px solid rgba(0, 255, 204, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.set-bonus-badge .set-name {
+  color: #00ffcc;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-right: 6px;
+}
+
+.set-bonus-badge .set-desc {
+  color: var(--text-secondary);
+}
+
+/* --- Pack Button in HUD --- */
+.pack-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-color: rgba(255, 215, 0, 0.4);
+  color: #ffd700;
+}
+
+.pack-btn:hover {
+  border-color: #ffd700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+/* --- Backpack Inventory Modal --- */
+.inventory-dialog {
+  max-width: 640px;
+  width: 90%;
+  border-color: rgba(0, 255, 170, 0.3);
+  box-shadow: 0 0 30px rgba(0, 255, 170, 0.15);
+}
+
+.inventory-summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(0, 255, 170, 0.05);
+  border: 1px solid rgba(0, 255, 170, 0.2);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.backpack-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.backpack-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  transition: border-color 0.15s;
+}
+
+.backpack-item-card:hover {
+  border-color: var(--cyan-glow);
+}
+
+.backpack-item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backpack-item-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-darker);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+
+.backpack-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backpack-item-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.backpack-item-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.backpack-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.empty-pack-msg {
+  text-align: center;
+  padding: 30px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* --- Merchant Shop Modal --- */
+.shop-dialog {
+  max-width: 680px;
+  width: 90%;
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 35px rgba(255, 215, 0, 0.2);
+}
+
+.shop-banner {
+  padding: 12px 16px;
+  background: rgba(255, 215, 0, 0.06);
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.shop-quote {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.shop-gold-display {
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.shop-wares-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  gap: 8px;
+}
+
+.shop-card:hover {
+  border-color: rgba(255, 215, 0, 0.5);
+}
+
+.shop-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shop-card-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.shop-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.shop-price {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd700;
+}
+

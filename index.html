@@ -88,6 +88,20 @@
           </div>
         </div>
 
+        <div class="meter-group">
+          <div class="meter-header">
+            <span>TREASURE WALLET</span>
+            <span id="gold-text" class="meter-val" style="color: #ffd700; font-weight: 700;">💰 0 GOLD</span>
+          </div>
+        </div>
+
+        <div class="meter-group">
+          <div class="meter-header">
+            <span>RELATIVE SPEED</span>
+            <span id="speed-text" class="meter-val" style="color: #00ffaa; font-weight: 700;">⚡ 100% (NORMAL)</span>
+          </div>
+        </div>
+
         <div class="stats-matrix">
           <div class="stat-cell">
             <div class="stat-label">LEVEL</div>
@@ -108,49 +122,108 @@
         </div>
       </section>
 
-      <!-- Equipment Loadout Panel -->
+      <!-- Equipment Loadout Panel (5 Slots + Set Bonuses) -->
       <section class="hud-panel">
         <div class="panel-title">
           <span>EQUIPMENT LOADOUT</span>
-          <span class="system-badge">GEAR</span>
+          <span class="system-badge">5 SLOTS</span>
         </div>
         <div class="equipment-list">
-          <div class="equipment-slot" id="slot-main_hand">
+          <div class="equipment-slot" id="slot-weapon">
             <span class="slot-icon">⚔</span>
             <div class="slot-info">
-              <span class="slot-label">MAIN HAND</span>
-              <span class="slot-value" id="slot-val-main_hand">Standard / Bare</span>
+              <span class="slot-label">WEAPON (MAIN)</span>
+              <span class="slot-value" id="slot-val-weapon">Standard / Bare</span>
             </div>
           </div>
-          <div class="equipment-slot" id="slot-off_hand">
+          <div class="equipment-slot" id="slot-offhand">
             <span class="slot-icon">🛡</span>
             <div class="slot-info">
-              <span class="slot-label">OFF HAND</span>
-              <span class="slot-value" id="slot-val-off_hand">None</span>
+              <span class="slot-label">OFF-HAND / SHIELD</span>
+              <span class="slot-value" id="slot-val-offhand">None</span>
             </div>
           </div>
+          <div class="equipment-slot" id="slot-armor">
+            <span class="slot-icon">🦺</span>
+            <div class="slot-info">
+              <span class="slot-label">BODY ARMOR</span>
+              <span class="slot-value" id="slot-val-armor">None</span>
+            </div>
+          </div>
+          <div class="equipment-slot" id="slot-helm">
+            <span class="slot-icon">🪖</span>
+            <div class="slot-info">
+              <span class="slot-label">HELMET</span>
+              <span class="slot-value" id="slot-val-helm">None</span>
+            </div>
+          </div>
+          <div class="equipment-slot" id="slot-ring">
+            <span class="slot-icon">💍</span>
+            <div class="slot-info">
+              <span class="slot-label">ACCESSORY RING</span>
+              <span class="slot-value" id="slot-val-ring">None</span>
+            </div>
+          </div>
+        </div>
+        <div id="active-set-bonuses" class="set-bonuses-container">
+          <!-- Active set bonuses render dynamically -->
         </div>
       </section>
 
-      <!-- Tactical Abilities Panel -->
+      <!-- Tactical Abilities & Spells Panel -->
       <section class="hud-panel">
         <div class="panel-title">
-          <span>TACTICAL ABILITIES</span>
-          <span class="system-badge highlight">HOTKEYS</span>
+          <span>ABILITIES & SPELLS</span>
+          <button id="btn-open-backpack" class="cyber-btn pack-btn" title="Open Backpack Inventory (Key I)">🎒 PACK [I]</button>
         </div>
         <div class="tactical-grid">
           <button id="btn-ability-dash" class="cyber-btn tactical-btn" title="Phase Dash 2 tiles forward (Key 1)">
             <span class="tactical-icon">⚡</span>
             <div class="tactical-info">
-              <span class="tactical-name">[1] PHASE DASH</span>
+              <span class="tactical-name">[1] DASH</span>
               <span id="dash-cooldown-text" class="tactical-status ready">READY</span>
             </div>
           </button>
-          <button id="btn-ability-bash" class="cyber-btn tactical-btn" title="Shield Bash adjacent enemy: Stun & Knockback (Key 2)">
+          <button id="btn-ability-bash" class="cyber-btn tactical-btn" title="Shield Bash stun & knockback (Key 2)">
             <span class="tactical-icon">🛡</span>
             <div class="tactical-info">
-              <span class="tactical-name">[2] SHIELD BASH</span>
+              <span class="tactical-name">[2] BASH</span>
               <span id="bash-cooldown-text" class="tactical-status ready">READY</span>
+            </div>
+          </button>
+          <button id="btn-spell-fireball" class="cyber-btn tactical-btn spell" title="Fireball 3x3 AoE Explosion (Key 3)">
+            <span class="tactical-icon">🔥</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[3] FIREBALL</span>
+              <span id="fireball-cooldown-text" class="tactical-status ready">READY</span>
+            </div>
+          </button>
+          <button id="btn-spell-lightning" class="cyber-btn tactical-btn spell" title="Piercing Lightning Beam 5 tiles (Key 4)">
+            <span class="tactical-icon">⚡</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[4] LIGHTNING</span>
+              <span id="lightning-cooldown-text" class="tactical-status ready">READY</span>
+            </div>
+          </button>
+          <button id="btn-spell-frost" class="cyber-btn tactical-btn spell" title="Frost Nova Freeze Radius 2 (Key 5)">
+            <span class="tactical-icon">❄</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[5] FROST NOVA</span>
+              <span id="frost-cooldown-text" class="tactical-status ready">READY</span>
+            </div>
+          </button>
+          <button id="btn-use-heal" class="cyber-btn tactical-btn item" title="Drink Health Potion (+35 HP) (Key Q)">
+            <span class="tactical-icon">🧪</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[Q] HEAL POT</span>
+              <span id="heal-count-text" class="tactical-status ready">USE</span>
+            </div>
+          </button>
+          <button id="btn-use-speed" class="cyber-btn tactical-btn item" title="Drink Swiftness Potion (+50% Speed) (Key E)">
+            <span class="tactical-icon">🏃</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[E] SWIFT POT</span>
+              <span id="speed-buff-text" class="tactical-status ready">USE</span>
             </div>
           </button>
         </div>
@@ -183,32 +256,32 @@
         <div class="panel-title">KEYMAP & CONTROLS</div>
         <div class="keymap-list">
           <div class="keymap-item">
-            <span>Move & Attack:</span>
+            <span>Move / Thrust:</span>
             <span class="kbd-badge">WASD / Arrows</span>
           </div>
           <div class="keymap-item">
-            <span>Wait / Pass Turn:</span>
+            <span>Pass Turn:</span>
             <span class="kbd-badge">Space / .</span>
           </div>
           <div class="keymap-item">
-            <span>Phase Dash (Jump):</span>
-            <span class="kbd-badge">[1]</span>
+            <span>Dash / Bash:</span>
+            <span class="kbd-badge">[1] / [2]</span>
           </div>
           <div class="keymap-item">
-            <span>Shield Bash (Stun):</span>
-            <span class="kbd-badge">[2]</span>
+            <span>Spells (Fire/Shock/Ice):</span>
+            <span class="kbd-badge">[3] [4] [5]</span>
           </div>
           <div class="keymap-item">
-            <span>Click Adjacent:</span>
-            <span class="kbd-badge">Move / Strike</span>
+            <span>Heal / Speed Potions:</span>
+            <span class="kbd-badge">[Q] / [E]</span>
           </div>
           <div class="keymap-item">
-            <span>Click Distant:</span>
-            <span class="kbd-badge">Inspect Entity</span>
+            <span>Backpack Inventory:</span>
+            <span class="kbd-badge">[I]</span>
           </div>
           <div class="keymap-item">
-            <span>Turn (3D modes):</span>
-            <span class="kbd-badge">Q / E</span>
+            <span>Reach Weapon:</span>
+            <span class="kbd-badge">2 tiles away</span>
           </div>
         </div>
       </section>
@@ -226,9 +299,33 @@
         <div id="tile-coords" class="info-stat">CURSOR: <strong>--</strong></div>
       </div>
 
+      <!-- Boss Encounter Top Banner -->
+      <div id="boss-hud" class="boss-hud hidden">
+        <div class="boss-title-row">
+          <span class="boss-icon">👹</span>
+          <span id="boss-name" class="boss-name">MINOTAUR CRYPT LORD</span>
+          <span id="boss-hp" class="boss-hp">220 / 220 HP</span>
+        </div>
+        <div class="boss-bar-track">
+          <div id="boss-bar-fill" class="boss-bar-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+
       <div class="canvas-wrapper">
         <div class="crt-overlay"></div>
         <canvas id="game-canvas" width="840" height="640"></canvas>
+      </div>
+
+      <!-- Arcade Hotbar -->
+      <div class="arcade-hotbar">
+        <button id="hotbar-dash" class="hotbar-btn" title="Phase Dash 2 tiles (Key 1)"><span class="hotbar-key">[1]</span> DASH</button>
+        <button id="hotbar-bash" class="hotbar-btn" title="Shield Bash & Stun (Key 2)"><span class="hotbar-key">[2]</span> BASH</button>
+        <button id="hotbar-fireball" class="hotbar-btn spell" title="Fireball 3x3 AoE (Key 3)"><span class="hotbar-key">[3]</span> 🔥 FIRE</button>
+        <button id="hotbar-lightning" class="hotbar-btn spell" title="Lightning Beam 5 tiles (Key 4)"><span class="hotbar-key">[4]</span> ⚡ SHOCK</button>
+        <button id="hotbar-frost" class="hotbar-btn spell" title="Frost Nova Radius 2 (Key 5)"><span class="hotbar-key">[5]</span> ❄ FROST</button>
+        <button id="hotbar-heal" class="hotbar-btn item" title="Drink Health Potion (Key Q)"><span class="hotbar-key">[Q]</span> 🧪 HEAL</button>
+        <button id="hotbar-speed" class="hotbar-btn item" title="Swiftness Potion (Key E)"><span class="hotbar-key">[E]</span> 🏃 SPEED</button>
+        <button id="hotbar-inventory" class="hotbar-btn pack" title="Open Backpack (Key I)"><span class="hotbar-key">[I]</span> 🎒 PACK</button>
       </div>
     </section>
 
@@ -303,7 +400,59 @@
         <button id="btn-flash-studio" class="cyber-btn primary-flash" title="Flash Cartridge to Virtual Console">🚀 Flash & Play</button>
       </div>
     </div>
-  <!-- Run Summary & Memorial Modal -->
+  </div>
+
+  <!-- Backpack Inventory Modal -->
+  <div id="inventory-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog inventory-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="power-led" style="box-shadow: 0 0 10px #00ffaa; background: #00ffaa;"></div>
+          <span>TACTICAL <strong>BACKPACK INVENTORY</strong></span>
+          <span class="system-badge highlight">[I] HOTKEY</span>
+        </div>
+        <button id="btn-close-inventory" class="modal-close-btn" title="Close Inventory">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="inventory-summary-bar">
+          <div id="inv-capacity-text">BACKPACK STORAGE (MAX 16 ITEMS)</div>
+          <div id="inv-gold-balance" style="color: #ffd700; font-weight: bold;">💰 0 GOLD</div>
+        </div>
+        <div id="backpack-items-list" class="backpack-grid">
+          <!-- Populated dynamically with backpack items -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-done-inventory" class="cyber-btn" title="Close Backpack">CLOSE [ESC]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dungeon Merchant Shop Modal -->
+  <div id="shop-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog shop-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="power-led" style="box-shadow: 0 0 10px #ffd700; background: #ffd700;"></div>
+          <span>GRIMM THE PEDDLER <strong>// ANTE-ROOM ARMORY</strong></span>
+          <span class="system-badge" style="color: #ffd700; border-color: #ffd700;">PRE-BOSS MERCHANT</span>
+        </div>
+        <button id="btn-close-shop" class="modal-close-btn" title="Close Merchant Shop">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="shop-banner">
+          <p class="shop-quote">"Beyond that archway lies the Boss Arena. Steel your resolve and stock your pack, traveler."</p>
+          <div class="shop-gold-display">YOUR PURSE: <strong id="shop-player-gold" style="color: #ffd700;">0 GOLD</strong></div>
+        </div>
+        <div id="shop-wares-list" class="shop-wares-grid">
+          <!-- Populated dynamically with purchasable goods -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-done-shop" class="cyber-btn primary-flash" title="Return to Dungeon">READY FOR BATTLE [ESC]</button>
+      </div>
+    </div>
+  </div>
   <div id="memorial-modal" class="modal-backdrop" style="display: none;">
     <div class="modal-dialog memorial-dialog">
       <div class="modal-header">

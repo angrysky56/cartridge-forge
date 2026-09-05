@@ -22,11 +22,24 @@ export interface GameMap {
   floorGlyph: string;
   wallGlyph: string;
   stairsPosition?: { x: number; y: number };
+  isBossFloor?: boolean;
+  anteRoom?: {
+    playerSpawn: { x: number; y: number };
+    merchantSpawn: { x: number; y: number };
+  };
+  bossArena?: {
+    bossSpawn: { x: number; y: number };
+  };
 }
 
 /** Generate a map from cartridge world_gen configuration */
-export function generateMap(cartridge: Cartridge): GameMap {
+export function generateMap(cartridge: Cartridge, depth: number = 1): GameMap {
   const cfg = cartridge.world_gen;
+
+  // Handcrafted Boss & Ante-Room Chamber on every 3rd floor
+  if (depth > 0 && depth % 3 === 0) {
+    return generateBossFloor(cfg, depth);
+  }
 
   switch (cfg.algorithm) {
     case 'cellular_automata':
@@ -171,6 +184,96 @@ function drunkardWalk(cfg: Cartridge['world_gen']): GameMap {
   }
 
   return buildMapResult(tiles, width, height, cfg);
+}
+
+/** Boss Chamber generation — Ante-Room with Merchant Shop, connecting corridor, and Grand Boss Arena */
+export function generateBossFloor(cfg: Cartridge['world_gen'], _depth: number = 3): GameMap {
+  const width = Math.max(36, cfg.width);
+  const height = Math.max(26, cfg.height);
+
+  const tiles: TileType[][] = Array.from({ length: height }, () =>
+    Array(width).fill(TileType.Wall),
+  );
+
+  const midY = Math.floor(height / 2);
+
+  // 1. Ante-Room (Safe Shopkeeper Chamber at Left)
+  const anteX = 2;
+  const anteY = midY - 4;
+  const anteW = 8;
+  const anteH = 8;
+
+  for (let y = anteY; y < anteY + anteH; y++) {
+    for (let x = anteX; x < anteX + anteW; x++) {
+      tiles[y][x] = TileType.Floor;
+    }
+  }
+
+  const playerSpawn = { x: anteX + 2, y: anteY + 4 };
+  const merchantSpawn = { x: anteX + 5, y: anteY + 4 };
+
+  // 2. Connecting Processional Corridor
+  const corrStartX = anteX + anteW;
+  const corrEndX = 14;
+  for (let x = corrStartX; x <= corrEndX; x++) {
+    for (let y = midY - 1; y <= midY + 1; y++) {
+      tiles[y][x] = TileType.Floor;
+    }
+  }
+
+  // 3. Grand Boss Arena (Right)
+  const arenaX = corrEndX + 1;
+  const arenaY = midY - 8;
+  const arenaW = 18;
+  const arenaH = 17;
+
+  for (let y = arenaY; y < arenaY + arenaH; y++) {
+    for (let x = arenaX; x < arenaX + arenaW; x++) {
+      tiles[y][x] = TileType.Floor;
+    }
+  }
+
+  // Symmetrical Ornate Columns in Boss Arena
+  const colOffset = 4;
+  const colPositions = [
+    { x: arenaX + colOffset, y: arenaY + colOffset },
+    { x: arenaX + arenaW - colOffset - 1, y: arenaY + colOffset },
+    { x: arenaX + colOffset, y: arenaY + arenaH - colOffset - 1 },
+    { x: arenaX + arenaW - colOffset - 1, y: arenaY + arenaH - colOffset - 1 },
+  ];
+  for (const c of colPositions) {
+    tiles[c.y][c.x] = TileType.Wall;
+  }
+
+  const bossSpawn = { x: arenaX + Math.floor(arenaW / 2), y: midY };
+  const stairsPosition = { x: arenaX + arenaW - 2, y: midY };
+
+  const floorTiles: Array<{ x: number; y: number }> = [];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (tiles[y][x] === TileType.Floor) {
+        floorTiles.push({ x, y });
+      }
+    }
+  }
+
+  return {
+    width,
+    height,
+    tiles,
+    floorTiles,
+    floorGlyph: cfg.floor_glyph || '.',
+    wallGlyph: cfg.wall_glyph || '#',
+    stairsPosition,
+    isBossFloor: true,
+    anteRoom: {
+      playerSpawn,
+      merchantSpawn,
+    },
+    bossArena: {
+      bossSpawn,
+    },
+  };
 }
 
 /** Count wall neighbors in a 3x3 area around (x, y) */

@@ -11,6 +11,7 @@ import { FORGEMASTER_SYSTEM_PROMPT } from './studio/prompt.js';
 import { validateCartridgeJson } from './studio/validator.js';
 import type { Entity } from './ecs/types.js';
 import type { Cartridge } from './cartridge/schema.js';
+import { resolveEntitySymbol } from './runtime/symbols.js';
 
 // --- DOM Elements ---
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -48,11 +49,64 @@ const xpTextEl = document.getElementById('xp-text') as HTMLElement | null;
 const xpBarEl = document.getElementById('xp-bar') as HTMLElement | null;
 const statLvlEl = document.getElementById('stat-lvl') as HTMLElement | null;
 const statFloorEl = document.getElementById('stat-floor') as HTMLElement | null;
+const goldTextEl = document.getElementById('gold-text') as HTMLElement | null;
+const speedTextEl = document.getElementById('speed-text') as HTMLElement | null;
 
 const btnAbilityDash = document.getElementById('btn-ability-dash') as HTMLButtonElement | null;
 const btnAbilityBash = document.getElementById('btn-ability-bash') as HTMLButtonElement | null;
+const btnSpellFireball = document.getElementById('btn-spell-fireball') as HTMLButtonElement | null;
+const btnSpellLightning = document.getElementById('btn-spell-lightning') as HTMLButtonElement | null;
+const btnSpellFrost = document.getElementById('btn-spell-frost') as HTMLButtonElement | null;
+const btnUseHeal = document.getElementById('btn-use-heal') as HTMLButtonElement | null;
+const btnUseSpeed = document.getElementById('btn-use-speed') as HTMLButtonElement | null;
+const btnOpenBackpack = document.getElementById('btn-open-backpack') as HTMLButtonElement | null;
+
 const dashCooldownText = document.getElementById('dash-cooldown-text') as HTMLElement | null;
 const bashCooldownText = document.getElementById('bash-cooldown-text') as HTMLElement | null;
+const fireballCooldownText = document.getElementById('fireball-cooldown-text') as HTMLElement | null;
+const lightningCooldownText = document.getElementById('lightning-cooldown-text') as HTMLElement | null;
+const frostCooldownText = document.getElementById('frost-cooldown-text') as HTMLElement | null;
+const healCountText = document.getElementById('heal-count-text') as HTMLElement | null;
+const speedBuffText = document.getElementById('speed-buff-text') as HTMLElement | null;
+
+// Arcade Hotbar Elements
+const hotbarDash = document.getElementById('hotbar-dash') as HTMLButtonElement | null;
+const hotbarBash = document.getElementById('hotbar-bash') as HTMLButtonElement | null;
+const hotbarFireball = document.getElementById('hotbar-fireball') as HTMLButtonElement | null;
+const hotbarLightning = document.getElementById('hotbar-lightning') as HTMLButtonElement | null;
+const hotbarFrost = document.getElementById('hotbar-frost') as HTMLButtonElement | null;
+const hotbarHeal = document.getElementById('hotbar-heal') as HTMLButtonElement | null;
+const hotbarSpeed = document.getElementById('hotbar-speed') as HTMLButtonElement | null;
+const hotbarInventory = document.getElementById('hotbar-inventory') as HTMLButtonElement | null;
+
+// Boss Encounter Top Banner Elements
+const bossHud = document.getElementById('boss-hud') as HTMLElement | null;
+const bossNameEl = document.getElementById('boss-name') as HTMLElement | null;
+const bossHpEl = document.getElementById('boss-hp') as HTMLElement | null;
+const bossBarFill = document.getElementById('boss-bar-fill') as HTMLElement | null;
+
+// 5 Normalized Equipment Slots + Set Bonuses
+const slotWeaponEl = document.getElementById('slot-val-weapon') as HTMLElement | null;
+const slotOffhandEl = document.getElementById('slot-val-offhand') as HTMLElement | null;
+const slotArmorEl = document.getElementById('slot-val-armor') as HTMLElement | null;
+const slotHelmEl = document.getElementById('slot-val-helm') as HTMLElement | null;
+const slotRingEl = document.getElementById('slot-val-ring') as HTMLElement | null;
+const activeSetBonusesEl = document.getElementById('active-set-bonuses') as HTMLElement | null;
+
+// Backpack Inventory Modal Elements
+const inventoryModal = document.getElementById('inventory-modal') as HTMLElement | null;
+const btnCloseInventory = document.getElementById('btn-close-inventory') as HTMLButtonElement | null;
+const btnDoneInventory = document.getElementById('btn-done-inventory') as HTMLButtonElement | null;
+const backpackItemsList = document.getElementById('backpack-items-list') as HTMLElement | null;
+const invCapacityText = document.getElementById('inv-capacity-text') as HTMLElement | null;
+const invGoldBalance = document.getElementById('inv-gold-balance') as HTMLElement | null;
+
+// Merchant Shop Modal Elements
+const shopModal = document.getElementById('shop-modal') as HTMLElement | null;
+const btnCloseShop = document.getElementById('btn-close-shop') as HTMLButtonElement | null;
+const btnDoneShop = document.getElementById('btn-done-shop') as HTMLButtonElement | null;
+const shopWaresList = document.getElementById('shop-wares-list') as HTMLElement | null;
+const shopPlayerGold = document.getElementById('shop-player-gold') as HTMLElement | null;
 
 // Memorial Modal Elements
 const memorialModal = document.getElementById('memorial-modal') as HTMLElement | null;
@@ -64,10 +118,6 @@ const memSlainEl = document.getElementById('mem-slain') as HTMLElement | null;
 const memChestsEl = document.getElementById('mem-chests') as HTMLElement | null;
 const memSecretsEl = document.getElementById('mem-secrets') as HTMLElement | null;
 const memTurnsEl = document.getElementById('mem-turns') as HTMLElement | null;
-
-// Equipment Slots
-const slotMainHandEl = document.getElementById('slot-val-main_hand') as HTMLElement;
-const slotOffHandEl = document.getElementById('slot-val-off_hand') as HTMLElement;
 
 // Studio Modal Elements
 const studioModal = document.getElementById('studio-modal') as HTMLElement;
@@ -131,12 +181,9 @@ function updateStats(player: Entity | undefined): void {
   const glyphComp = player.components.get('Glyph') as { char: string; color: string } | undefined;
 
   // Glyph & Name
-  if (rend) {
-    playerGlyphEl.textContent = rend.glyph;
-    playerGlyphEl.style.color = rend.color || 'var(--green-glow)';
-  } else if (glyphComp) {
-    playerGlyphEl.textContent = glyphComp.char;
-  }
+  const playerSymbol = resolveEntitySymbol(player);
+  playerGlyphEl.textContent = playerSymbol.symbol;
+  playerGlyphEl.style.color = playerSymbol.color || 'var(--green-glow)';
 
   // Health Meter
   if (health && health.max > 0) {
@@ -178,34 +225,56 @@ function updateStats(player: Entity | undefined): void {
     armorBarEl.style.width = `${Math.min(100, totalArmor * 10)}%`;
   }
 
-  // Equipment Slots Rack
-  const equipped = game.getEquippedItems();
-  const mainHandItem = equipped['main_hand'];
-  const offHandItem = equipped['off_hand'];
+  // Currency (Gold) & Relative Speed Gauges
+  const gold = game.getGold();
+  if (goldTextEl) {
+    goldTextEl.textContent = `💰 ${gold} GOLD`;
+  }
+  const speed = game.getPlayerSpeed();
+  const spells = game.getSpellCooldowns();
+  if (speedTextEl) {
+    const speedStatus = spells.speedBuff > 0 ? `SWIFT (${spells.speedBuff}T)` : 'NORMAL';
+    speedTextEl.textContent = `⚡ ${speed}% (${speedStatus})`;
+    speedTextEl.style.color = spells.speedBuff > 0 ? '#00ffff' : '#00ffaa';
+  }
 
-  if (slotMainHandEl) {
-    if (mainHandItem) {
-      const name = (mainHandItem.components.get('Description') as any)?.name || 'Weapon';
-      const eq = mainHandItem.components.get('Equippable') as any;
+  // 5 Normalized Equipment Slots Rack
+  const equipped = game.getEquippedItems();
+  const slotsConfig: Array<{ el: HTMLElement | null; key: string; defaultText: string }> = [
+    { el: slotWeaponEl, key: 'weapon', defaultText: 'Standard / Bare' },
+    { el: slotOffhandEl, key: 'offhand', defaultText: 'None' },
+    { el: slotArmorEl, key: 'armor', defaultText: 'None' },
+    { el: slotHelmEl, key: 'helm', defaultText: 'None' },
+    { el: slotRingEl, key: 'ring', defaultText: 'None' },
+  ];
+
+  for (const slot of slotsConfig) {
+    if (!slot.el) continue;
+    const item = equipped[slot.key];
+    if (item) {
+      const name = (item.components.get('Description') as any)?.name || 'Gear';
+      const eq = item.components.get('Equippable') as any;
       const mod = eq?.modifiers ? Object.entries(eq.modifiers).map(([k, v]) => `+${v} ${k.split('.').pop()}`).join(', ') : '';
-      slotMainHandEl.textContent = `${name}${mod ? ` (${mod})` : ''}`;
-      slotMainHandEl.style.color = 'var(--cyan-glow)';
+      slot.el.textContent = `${name}${mod ? ` (${mod})` : ''}`;
+      slot.el.style.color = 'var(--cyan-glow)';
     } else {
-      slotMainHandEl.textContent = 'Bare / Unarmed';
-      slotMainHandEl.style.color = 'var(--text-muted)';
+      slot.el.textContent = slot.defaultText;
+      slot.el.style.color = 'var(--text-dim)';
     }
   }
 
-  if (slotOffHandEl) {
-    if (offHandItem) {
-      const name = (offHandItem.components.get('Description') as any)?.name || 'Shield';
-      const eq = offHandItem.components.get('Equippable') as any;
-      const mod = eq?.modifiers ? Object.entries(eq.modifiers).map(([k, v]) => `+${v} ${k.split('.').pop()}`).join(', ') : '';
-      slotOffHandEl.textContent = `${name}${mod ? ` (${mod})` : ''}`;
-      slotOffHandEl.style.color = 'var(--cyan-glow)';
+  // Active Set Bonuses Display
+  if (activeSetBonusesEl) {
+    const setBonuses = game.getActiveSetBonuses();
+    if (setBonuses.length === 0) {
+      activeSetBonusesEl.innerHTML = '';
     } else {
-      slotOffHandEl.textContent = 'None';
-      slotOffHandEl.style.color = 'var(--text-muted)';
+      activeSetBonusesEl.innerHTML = setBonuses.map(b => `
+        <div class="set-bonus-badge">
+          <span class="set-name">[SET] ${b.setDisplayName}</span>
+          <span class="set-desc">${b.description}</span>
+        </div>
+      `).join('');
     }
   }
 
@@ -220,7 +289,7 @@ function updateStats(player: Entity | undefined): void {
   if (statLvlEl) statLvlEl.textContent = String(lvl);
   if (statFloorEl) statFloorEl.textContent = `B${game.getDepth()}`;
 
-  // Tactical Ability Cooldowns
+  // Tactical Abilities & Spells Cooldowns
   const cooldowns = game.getCooldowns();
   if (btnAbilityDash && dashCooldownText) {
     if (cooldowns.dash > 0) {
@@ -242,6 +311,68 @@ function updateStats(player: Entity | undefined): void {
       bashCooldownText.textContent = 'READY';
       bashCooldownText.className = 'tactical-status ready';
       btnAbilityBash.disabled = false;
+    }
+  }
+  if (btnSpellFireball && fireballCooldownText) {
+    if (spells.fireball > 0) {
+      fireballCooldownText.textContent = `${spells.fireball} TURNS`;
+      fireballCooldownText.className = 'tactical-status cooldown';
+      btnSpellFireball.disabled = true;
+    } else {
+      fireballCooldownText.textContent = 'READY';
+      fireballCooldownText.className = 'tactical-status ready';
+      btnSpellFireball.disabled = false;
+    }
+  }
+  if (btnSpellLightning && lightningCooldownText) {
+    if (spells.lightning > 0) {
+      lightningCooldownText.textContent = `${spells.lightning} TURNS`;
+      lightningCooldownText.className = 'tactical-status cooldown';
+      btnSpellLightning.disabled = true;
+    } else {
+      lightningCooldownText.textContent = 'READY';
+      lightningCooldownText.className = 'tactical-status ready';
+      btnSpellLightning.disabled = false;
+    }
+  }
+  if (btnSpellFrost && frostCooldownText) {
+    if (spells.frost > 0) {
+      frostCooldownText.textContent = `${spells.frost} TURNS`;
+      frostCooldownText.className = 'tactical-status cooldown';
+      btnSpellFrost.disabled = true;
+    } else {
+      frostCooldownText.textContent = 'READY';
+      frostCooldownText.className = 'tactical-status ready';
+      btnSpellFrost.disabled = false;
+    }
+  }
+
+  // Backpack Consumables Count
+  const backpack = game.getBackpack();
+  const healPots = backpack.filter(i => (i.components.get('Description') as any)?.name?.includes('Health') || i.id.startsWith('health_potion')).length;
+  const speedPots = backpack.filter(i => (i.components.get('Description') as any)?.name?.includes('Swiftness') || i.id.startsWith('speed_potion')).length;
+  if (healCountText) {
+    healCountText.textContent = healPots > 0 ? `USE (${healPots})` : 'EMPTY';
+    healCountText.className = healPots > 0 ? 'tactical-status ready' : 'tactical-status cooldown';
+  }
+  if (speedBuffText) {
+    speedBuffText.textContent = spells.speedBuff > 0 ? `${spells.speedBuff}T BUFF` : (speedPots > 0 ? `USE (${speedPots})` : 'EMPTY');
+    speedBuffText.className = (spells.speedBuff > 0 || speedPots > 0) ? 'tactical-status ready' : 'tactical-status cooldown';
+  }
+
+  // Boss Encounter Top Banner
+  const boss = game.getActiveBoss();
+  if (bossHud && bossNameEl && bossHpEl && bossBarFill) {
+    if (boss && boss.components.has('Health')) {
+      bossHud.classList.remove('hidden');
+      const desc = (boss.components.get('Description') as any)?.name || 'DUNGEON BOSS';
+      const bHealth = boss.components.get('Health') as { current: number; max: number };
+      bossNameEl.textContent = desc.toUpperCase();
+      bossHpEl.textContent = `${Math.max(0, bHealth.current)} / ${bHealth.max} HP`;
+      const pct = Math.max(0, Math.min(100, Math.round((bHealth.current / bHealth.max) * 100)));
+      bossBarFill.style.width = `${pct}%`;
+    } else {
+      bossHud.classList.add('hidden');
     }
   }
 
@@ -266,37 +397,31 @@ const game = new Game(canvas, logMessage, updateStats);
 function updateFieldLegend(cartridge: Cartridge): void {
   fieldLegend.innerHTML = '';
 
-  const legendItems: Array<{ glyph: string; color: string; label: string }> = [
-    { glyph: '@', color: '#00ffaa', label: 'Player Mech' },
+  const legendItems: Array<{ symbol: string; color: string; label: string }> = [
+    { symbol: '🧙', color: '#00ffaa', label: 'Operator Hero' },
   ];
 
   // Extract from blueprints
   for (const [name, bp] of Object.entries(cartridge.blueprints)) {
-    const rend = bp['Renderable'] as { glyph?: string; color?: string } | undefined;
-    const glyphComp = bp['Glyph'] as { char?: string; color?: string } | undefined;
-    const faction = bp['Faction'] as { id?: string } | undefined;
-
-    const g = rend?.glyph || glyphComp?.char;
-    const c = rend?.color || glyphComp?.color || '#ffffff';
-
-    if (g && g !== '@' && !legendItems.some(i => i.glyph === g)) {
+    const info = resolveEntitySymbol(bp);
+    if (info.category !== 'player' && !legendItems.some(i => i.symbol === info.symbol)) {
       legendItems.push({
-        glyph: g,
-        color: c.startsWith('#') ? c : '#ff5577',
-        label: name.replace(/_/g, ' '),
+        symbol: info.symbol,
+        color: info.color.startsWith('#') ? info.color : '#ff5577',
+        label: info.label || name.replace(/_/g, ' '),
       });
     }
   }
 
   // Add terrain
-  legendItems.push({ glyph: cartridge.world_gen?.wall_glyph || '#', color: '#4a5578', label: 'Solid Wall' });
-  legendItems.push({ glyph: cartridge.world_gen?.floor_glyph || '.', color: '#252a3d', label: 'Open Floor' });
+  legendItems.push({ symbol: '🧱', color: '#4a5578', label: 'Solid Wall' });
+  legendItems.push({ symbol: '▫️', color: '#252a3d', label: 'Open Floor' });
 
   for (const item of legendItems) {
     const el = document.createElement('div');
     el.className = 'legend-item';
     el.innerHTML = `
-      <span class="legend-icon" style="color: ${item.color}; background: rgba(255,255,255,0.06);">${item.glyph}</span>
+      <span class="legend-icon" style="color: ${item.color}; background: rgba(255,255,255,0.06); font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;">${item.symbol}</span>
       <span class="legend-text" title="${item.label}">${item.label}</span>
     `;
     fieldLegend.appendChild(el);
@@ -313,22 +438,18 @@ function inspectTile(gridX: number, gridY: number): void {
   const entity = game.getEntityAt(gridX, gridY);
 
   if (entity) {
-    const rend = entity.components.get('Renderable') as { glyph: string; color: string } | undefined;
-    const glyphComp = entity.components.get('Glyph') as { char: string; color: string } | undefined;
+    const symbolInfo = resolveEntitySymbol(entity);
     const faction = entity.components.get('Faction') as { id: string } | undefined;
     const health = entity.components.get('Health') as { current: number; max: number } | undefined;
     const combat = entity.components.get('CombatStats') as Record<string, number> | undefined;
 
-    const glyphChar = rend?.glyph || glyphComp?.char || '?';
-    const glyphColor = rend?.color || glyphComp?.color || '#00f0ff';
-
-    inspectorGlyph.textContent = glyphChar;
-    inspectorGlyph.style.color = glyphColor;
-    inspectorGlyph.style.borderColor = glyphColor;
+    inspectorGlyph.textContent = symbolInfo.symbol;
+    inspectorGlyph.style.color = symbolInfo.color;
+    inspectorGlyph.style.borderColor = symbolInfo.color;
 
     const isPlayer = faction?.id === 'player';
-    inspectorName.textContent = isPlayer ? 'Operator (You)' : `Target [${entity.id}]`;
-    inspectorType.textContent = faction?.id ? `Faction: ${faction.id.toUpperCase()}` : 'Entity';
+    inspectorName.textContent = isPlayer ? 'Operator Hero (You)' : symbolInfo.label;
+    inspectorType.textContent = faction?.id ? `Faction: ${faction.id.toUpperCase()}` : symbolInfo.category.toUpperCase();
 
     const details: string[] = [];
     if (health) details.push(`HP: ${health.current} / ${health.max}`);
@@ -345,11 +466,11 @@ function inspectTile(gridX: number, gridY: number): void {
   } else {
     // Terrain inspection
     const isWall = map.tiles[gridY]?.[gridX] === 1;
-    inspectorGlyph.textContent = isWall ? map.wallGlyph || '#' : map.floorGlyph || '.';
+    inspectorGlyph.textContent = isWall ? '🧱' : '▫️';
     inspectorGlyph.style.color = isWall ? '#4a5578' : '#252a3d';
     inspectorGlyph.style.borderColor = 'var(--border-subtle)';
 
-    inspectorName.textContent = isWall ? 'Reinforced Wall' : 'Walkable Deck';
+    inspectorName.textContent = isWall ? 'Stone Masonry Wall' : 'Dungeon Floor';
     inspectorType.textContent = 'Terrain';
     inspectorStats.textContent = `Coordinates: [${gridX}, ${gridY}] | Traversable: ${!isWall ? 'YES' : 'NO'}`;
   }
@@ -423,6 +544,52 @@ document.querySelectorAll('.dpad-btn').forEach(btn => {
 
 // 4. Keyboard Controls
 document.addEventListener('keydown', (e) => {
+  // If typing in an input/textarea, ignore game controls
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+    return;
+  }
+
+  // Toggle Inventory Modal with 'i' or 'I'
+  if (e.key === 'i' || e.key === 'I') {
+    e.preventDefault();
+    if (inventoryModal && inventoryModal.style.display === 'flex') {
+      closeInventoryModal();
+    } else {
+      openInventoryModal();
+    }
+    return;
+  }
+
+  // Close modals on Escape
+  if (e.key === 'Escape') {
+    if (inventoryModal && inventoryModal.style.display === 'flex') {
+      closeInventoryModal();
+      return;
+    }
+    if (shopModal && shopModal.style.display === 'flex') {
+      closeShopModal();
+      return;
+    }
+    if (studioModal && studioModal.style.display === 'flex') {
+      studioModal.style.display = 'none';
+      return;
+    }
+    if (memorialModal && memorialModal.style.display === 'flex') {
+      memorialModal.style.display = 'none';
+      return;
+    }
+  }
+
+  // If any modal is open, don't pass navigation/attacks to game
+  if (
+    (inventoryModal && inventoryModal.style.display === 'flex') ||
+    (shopModal && shopModal.style.display === 'flex') ||
+    (studioModal && studioModal.style.display === 'flex') ||
+    (memorialModal && memorialModal.style.display === 'flex')
+  ) {
+    return;
+  }
+
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
     e.preventDefault();
   }
@@ -615,18 +782,193 @@ btnFlashStudio.addEventListener('click', () => {
   }
 });
 
-// --- Tactical Abilities Button Wiring ---
-if (btnAbilityDash) {
-  btnAbilityDash.addEventListener('click', () => {
-    game.usePhaseDash();
+// --- Tactical Abilities & Spells Button Wiring ---
+if (btnAbilityDash) btnAbilityDash.addEventListener('click', () => game.usePhaseDash());
+if (hotbarDash) hotbarDash.addEventListener('click', () => game.usePhaseDash());
+
+if (btnAbilityBash) btnAbilityBash.addEventListener('click', () => game.useShieldBash());
+if (hotbarBash) hotbarBash.addEventListener('click', () => game.useShieldBash());
+
+if (btnSpellFireball) btnSpellFireball.addEventListener('click', () => game.useFireball());
+if (hotbarFireball) hotbarFireball.addEventListener('click', () => game.useFireball());
+
+if (btnSpellLightning) btnSpellLightning.addEventListener('click', () => game.useLightning());
+if (hotbarLightning) hotbarLightning.addEventListener('click', () => game.useLightning());
+
+if (btnSpellFrost) btnSpellFrost.addEventListener('click', () => game.useFrostNova());
+if (hotbarFrost) hotbarFrost.addEventListener('click', () => game.useFrostNova());
+
+if (btnUseHeal) btnUseHeal.addEventListener('click', () => game.drinkHealthPotion());
+if (hotbarHeal) hotbarHeal.addEventListener('click', () => game.drinkHealthPotion());
+
+if (btnUseSpeed) btnUseSpeed.addEventListener('click', () => game.drinkSpeedPotion());
+if (hotbarSpeed) hotbarSpeed.addEventListener('click', () => game.drinkSpeedPotion());
+
+if (btnOpenBackpack) btnOpenBackpack.addEventListener('click', () => openInventoryModal());
+if (hotbarInventory) hotbarInventory.addEventListener('click', () => openInventoryModal());
+
+// --- Backpack Inventory Modal Logic ---
+function openInventoryModal(): void {
+  if (!inventoryModal || !backpackItemsList) return;
+  const player = game.getPlayer();
+  if (!player) return;
+
+  const backpack = game.getBackpack();
+  if (invCapacityText) invCapacityText.textContent = `BACKPACK STORAGE (${backpack.length} / 16 ITEMS)`;
+  if (invGoldBalance) invGoldBalance.textContent = `💰 ${game.getGold()} GOLD`;
+
+  backpackItemsList.innerHTML = '';
+  if (backpack.length === 0) {
+    backpackItemsList.innerHTML = '<div class="empty-pack-msg">Your backpack is empty. Defeat monsters and open chests to collect equipment, scrolls, and potions!</div>';
+  } else {
+    for (const item of backpack) {
+      const desc = (item.components.get('Description') as any)?.name || 'Item';
+      const text = (item.components.get('Description') as any)?.text || '';
+      const equippable = item.components.get('Equippable') as { slot: string; modifiers: Record<string, number> } | undefined;
+      const setComp = item.components.get('SetItem') as { setName: string } | undefined;
+      const consumable = item.components.get('Consumable') as { effect: string; value: number } | undefined;
+      const isEquippable = !!equippable;
+
+      let subText = text;
+      if (equippable?.modifiers) {
+        const modsStr = Object.entries(equippable.modifiers).map(([k, v]) => `+${v} ${k.split('.').pop()}`).join(', ');
+        subText = `[${equippable.slot.toUpperCase()}] ${modsStr}${setComp ? ` (${setComp.setName} Set)` : ''}`;
+      } else if (consumable) {
+        subText = `Consumable: ${consumable.effect.toUpperCase()}`;
+      }
+
+      let icon = '📦';
+      if (equippable?.slot === 'weapon') icon = '⚔';
+      else if (equippable?.slot === 'offhand') icon = '🛡';
+      else if (equippable?.slot === 'armor') icon = '🦺';
+      else if (equippable?.slot === 'helm') icon = '🪖';
+      else if (equippable?.slot === 'ring') icon = '💍';
+      else if (consumable?.effect === 'heal') icon = '🧪';
+      else if (consumable?.effect === 'speed') icon = '🏃';
+      else if (consumable?.effect === 'teleport') icon = '📜';
+
+      const card = document.createElement('div');
+      card.className = 'backpack-item-card';
+      card.innerHTML = `
+        <div class="backpack-item-info">
+          <span class="backpack-item-icon">${icon}</span>
+          <div class="backpack-item-details">
+            <span class="backpack-item-name">${desc}</span>
+            <span class="backpack-item-sub">${subText}</span>
+          </div>
+        </div>
+        <div class="backpack-item-actions">
+          <button class="cyber-btn item-use-btn" style="font-size: 11px; padding: 4px 8px;">
+            ${isEquippable ? 'EQUIP' : 'USE'}
+          </button>
+          <button class="cyber-btn item-drop-btn" style="font-size: 11px; padding: 4px 8px; border-color: rgba(255,51,85,0.4); color: #ff3355;">
+            DROP
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.item-use-btn')?.addEventListener('click', () => {
+        game.useBackpackItem(item);
+        openInventoryModal();
+      });
+
+      card.querySelector('.item-drop-btn')?.addEventListener('click', () => {
+        game.dropBackpackItem(item);
+        openInventoryModal();
+      });
+
+      backpackItemsList.appendChild(card);
+    }
+  }
+
+  inventoryModal.style.display = 'flex';
+  sound.playItem();
+}
+
+function closeInventoryModal(): void {
+  if (inventoryModal) {
+    inventoryModal.style.display = 'none';
+  }
+}
+
+if (btnCloseInventory) btnCloseInventory.addEventListener('click', closeInventoryModal);
+if (btnDoneInventory) btnDoneInventory.addEventListener('click', closeInventoryModal);
+if (inventoryModal) {
+  inventoryModal.addEventListener('click', (e) => {
+    if (e.target === inventoryModal) closeInventoryModal();
   });
 }
 
-if (btnAbilityBash) {
-  btnAbilityBash.addEventListener('click', () => {
-    game.useShieldBash();
+// --- Grimm the Peddler Shop Modal Logic ---
+const SHOP_WARES = [
+  { blueprint: 'health_potion', name: 'Health Potion', icon: '🧪', desc: 'Restores +35 HP instantly', price: 35 },
+  { blueprint: 'speed_potion', name: 'Swiftness Potion', icon: '🏃', desc: 'Increases Relative Speed to 150% for 15 turns', price: 45 },
+  { blueprint: 'teleport_scroll', name: 'Scroll of Teleport', icon: '📜', desc: 'Warps you to safety immediately', price: 50 },
+  { blueprint: 'iron_spear', name: 'Iron Pike (Spear)', icon: '🔱', desc: 'Reach Weapon: Strikes 2 tiles away without retaliation (+8 STR)', price: 65 },
+  { blueprint: 'composite_bow', name: 'Composite Bow', icon: '🏹', desc: 'Ranged Weapon: Fires at foes from afar (+10 STR)', price: 80 },
+  { blueprint: 'ironclad_plate', name: 'Ironclad Plate', icon: '🦺', desc: 'Ironclad Set: +6 Armor, +10 HP (Set: +10 Armor, +35 HP)', price: 110 },
+  { blueprint: 'shadow_cloak', name: 'Shadow Cloak', icon: '🧥', desc: 'Shadow Set: +20 Speed, +4 Armor (Set: +35 Speed, +10 INT)', price: 110 },
+  { blueprint: 'archmage_robe', name: 'Archmage Robe', icon: '👘', desc: 'Archmage Set: +8 Intellect, +2 Armor (Set: +15 INT, +40 Spell DMG)', price: 110 },
+];
+
+function openShopModal(): void {
+  if (!shopModal || !shopWaresList) return;
+  const playerGold = game.getGold();
+  if (shopPlayerGold) shopPlayerGold.textContent = `${playerGold} GOLD`;
+
+  shopWaresList.innerHTML = '';
+  for (const ware of SHOP_WARES) {
+    const canAfford = playerGold >= ware.price;
+    const card = document.createElement('div');
+    card.className = 'shop-card';
+    card.innerHTML = `
+      <div class="shop-card-top">
+        <span style="font-size: 22px;">${ware.icon}</span>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <strong style="font-family: var(--font-display); font-size: 14px; color: #fff;">${ware.name}</strong>
+          <span class="shop-card-desc">${ware.desc}</span>
+        </div>
+      </div>
+      <div class="shop-card-bottom">
+        <span class="shop-price">💰 ${ware.price} GOLD</span>
+        <button class="cyber-btn shop-buy-btn ${canAfford ? 'primary-flash' : ''}" style="font-size: 11px; padding: 4px 10px;" ${canAfford ? '' : 'disabled'}>
+          ${canAfford ? 'PURCHASE' : 'NEED GOLD'}
+        </button>
+      </div>
+    `;
+
+    card.querySelector('.shop-buy-btn')?.addEventListener('click', () => {
+      const bought = game.buyShopItem(ware.blueprint, ware.price);
+      if (bought) {
+        openShopModal();
+      }
+    });
+
+    shopWaresList.appendChild(card);
+  }
+
+  shopModal.style.display = 'flex';
+  sound.playItem();
+}
+
+function closeShopModal(): void {
+  if (shopModal) {
+    shopModal.style.display = 'none';
+  }
+}
+
+if (btnCloseShop) btnCloseShop.addEventListener('click', closeShopModal);
+if (btnDoneShop) btnDoneShop.addEventListener('click', closeShopModal);
+if (shopModal) {
+  shopModal.addEventListener('click', (e) => {
+    if (e.target === shopModal) closeShopModal();
   });
 }
+
+// Connect Shop callback from Game runtime
+game.setShopCallback(() => {
+  openShopModal();
+});
 
 // --- Memorial Modal Wiring ---
 function showMemorialModal(): void {

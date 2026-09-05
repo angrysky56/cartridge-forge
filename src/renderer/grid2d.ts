@@ -8,6 +8,7 @@ import type { Entity } from '../ecs/types.js';
 import { type GameMap, TileType } from '../runtime/mapgen.js';
 import type { IRenderer, RenderConfig } from './types.js';
 import { computeFOV } from './fov.js';
+import { resolveEntitySymbol } from '../runtime/symbols.js';
 
 interface FloatingText {
   id: number;
@@ -159,42 +160,69 @@ export class Grid2DRenderer implements IRenderer {
         const py = row * cellSize;
 
         if (tile === TileType.Wall) {
-          // Beveled procedural wall panel
-          ctx.fillStyle = isVisible ? (this.palette.wall || '#1e2230') : '#12141f';
+          // Beveled procedural stone masonry wall (NO '#' character)
+          ctx.fillStyle = isVisible ? (this.palette.wall || '#1c2030') : '#0f121d';
           ctx.fillRect(px, py, cellSize, cellSize);
 
           if (isVisible) {
-            // Top and left bevel highlights
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.fillRect(px, py, cellSize, 2);
-            ctx.fillRect(px, py, 2, cellSize);
+            // Specular top & left bevel edges
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.fillRect(px, py, cellSize, 1);
+            ctx.fillRect(px, py, 1, cellSize);
 
-            // Bottom and right shadow borders
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            // Deep shadow bottom & right bevel edges
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.fillRect(px, py + cellSize - 2, cellSize, 2);
             ctx.fillRect(px + cellSize - 2, py, 2, cellSize);
-          }
 
-          // Centered subtle wall rune/glyph
-          ctx.font = `${Math.floor(cellSize * 0.48)}px ${this.fontFamily}`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = isVisible ? (this.palette.wall_glyph || '#4a5578') : '#282f45';
-          ctx.fillText(map.wallGlyph || '#', px + cellSize / 2, py + cellSize / 2);
+            // Center horizontal mortar groove
+            const midY = py + Math.floor(cellSize * 0.5);
+            ctx.fillStyle = 'rgba(6, 8, 14, 0.85)';
+            ctx.fillRect(px + 1, midY, cellSize - 2, 1);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fillRect(px + 1, midY + 1, cellSize - 2, 1);
+
+            // Staggered vertical mortar joints (running-bond brickwork)
+            const isStagger = (mapX + mapY) % 2 === 0;
+            const topSplit = isStagger ? Math.floor(cellSize * 0.38) : Math.floor(cellSize * 0.62);
+            const botSplit = isStagger ? Math.floor(cellSize * 0.72) : Math.floor(cellSize * 0.32);
+
+            // Top course mortar joint
+            ctx.fillStyle = 'rgba(6, 8, 14, 0.85)';
+            ctx.fillRect(px + topSplit, py + 1, 1, midY - py - 1);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.fillRect(px + topSplit + 1, py + 1, 1, midY - py - 1);
+
+            // Bottom course mortar joint
+            ctx.fillStyle = 'rgba(6, 8, 14, 0.85)';
+            ctx.fillRect(px + botSplit, midY + 1, 1, py + cellSize - midY - 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.fillRect(px + botSplit + 1, midY + 1, 1, py + cellSize - midY - 2);
+
+            // Subtle brick surface texture / chisel marks
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+            ctx.fillRect(px + 4, py + 3, Math.max(2, Math.floor(cellSize * 0.2)), 1);
+            ctx.fillRect(px + cellSize - 8, py + cellSize - 4, Math.max(2, Math.floor(cellSize * 0.2)), 1);
+          } else {
+            // Memory silhouette mortar lines
+            const midY = py + Math.floor(cellSize * 0.5);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(px + 1, midY, cellSize - 2, 1);
+          }
         } else {
-          // Floor tile with subtle grid pattern
+          // Atmospheric dungeon floor slab (NO '.' character)
           ctx.fillStyle = isVisible ? (this.palette.floor || '#0e1017') : '#08090d';
           ctx.fillRect(px, py, cellSize, cellSize);
 
           if (isVisible) {
-            // Subtle floor perimeter grid line
+            // Subtle floor flagstone perimeter groove
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
             ctx.lineWidth = 1;
             ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
 
-            // Subtle floor dot at center
-            ctx.fillStyle = this.palette.floor_glyph || '#252a3d';
-            ctx.fillRect(px + cellSize / 2 - 1, py + cellSize / 2 - 1, 2, 2);
+            // Subtle corner flagstone notch
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+            ctx.fillRect(px + 2, py + 2, 2, 2);
           }
         }
 
@@ -281,6 +309,9 @@ export class Grid2DRenderer implements IRenderer {
       const px = screenCol * cellSize;
       const py = screenRow * cellSize;
 
+      const symbolInfo = resolveEntitySymbol(entity);
+      const symbol = symbolInfo.symbol;
+
       if (isPlayer) {
         playerScreenX = px + cellSize / 2;
         playerScreenY = py + cellSize / 2;
@@ -288,30 +319,58 @@ export class Grid2DRenderer implements IRenderer {
         // Player glowing energy shield aura
         ctx.save();
         ctx.shadowColor = '#00ffaa';
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = 'rgba(0, 255, 170, 0.18)';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = 'rgba(0, 255, 170, 0.2)';
         ctx.beginPath();
         ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.45, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
-      } else if (faction?.id === 'monster' || faction?.id === 'enemy') {
+      } else if (symbolInfo.category === 'monster') {
         // Subtle enemy menace pulse
         const pulse = 0.5 + 0.5 * Math.sin(now * 0.006);
-        ctx.fillStyle = `rgba(255, 68, 102, ${0.08 + pulse * 0.08})`;
+        ctx.fillStyle = `rgba(255, 68, 102, ${0.1 + pulse * 0.1})`;
         ctx.beginPath();
-        ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.4, 0, Math.PI * 2);
+        ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (symbolInfo.category === 'item') {
+        // Soft golden loot halo on the ground beneath items
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.18)';
+        ctx.beginPath();
+        ctx.arc(px + cellSize / 2, py + cellSize / 2 + 2, cellSize * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (symbolInfo.category === 'feature') {
+        // Feature halo (shrines, chest, stairs)
+        const isLife = symbol === '💖';
+        const isMight = symbol === '⚔️';
+        const isAegis = symbol === '🛡️';
+        const isBlood = symbol === '🩸';
+        const haloColor = isLife ? 'rgba(0, 255, 136, 0.22)'
+          : isMight ? 'rgba(255, 51, 68, 0.22)'
+          : isAegis ? 'rgba(0, 240, 255, 0.22)'
+          : isBlood ? 'rgba(255, 0, 85, 0.25)'
+          : 'rgba(255, 215, 0, 0.18)';
+        ctx.fillStyle = haloColor;
+        ctx.beginPath();
+        ctx.arc(px + cellSize / 2, py + cellSize / 2 + 1, cellSize * 0.4, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Draw entity avatar glyph
+      // Draw entity avatar symbol (Emoji & Unicode first font stack)
       ctx.save();
-      ctx.font = `bold ${Math.floor(cellSize * 0.65)}px ${this.fontFamily}`;
+      ctx.font = `${Math.floor(cellSize * 0.72)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", ${this.fontFamily}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = rend.color || (isPlayer ? '#00ffaa' : '#ffffff');
-      ctx.shadowColor = rend.color || '#ffffff';
-      ctx.shadowBlur = isPlayer ? 8 : 4;
-      ctx.fillText(rend.glyph, px + cellSize / 2, py + cellSize / 2);
+      if (isPlayer) {
+        ctx.shadowColor = '#00ffaa';
+        ctx.shadowBlur = 8;
+      } else if (symbolInfo.category === 'monster') {
+        ctx.shadowColor = '#ff3344';
+        ctx.shadowBlur = 6;
+      } else if (symbolInfo.category === 'item') {
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 5;
+      }
+      ctx.fillText(symbol, px + cellSize / 2, py + cellSize / 2);
       ctx.restore();
 
       // Draw Overhead Health Bar if damaged
