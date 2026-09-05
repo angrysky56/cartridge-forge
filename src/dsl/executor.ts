@@ -82,9 +82,9 @@ export class SystemExecutor {
       const contextBindings: Record<string, Entity> = {};
       if (def.context) {
         for (const [varName, binding] of Object.entries(def.context)) {
-          if (binding === 'event.source' && event.source) {
+          if ((binding === 'event.source' || binding === 'source') && event.source) {
             contextBindings[varName] = event.source;
-          } else if (binding === 'event.target' && event.target) {
+          } else if ((binding === 'event.target' || binding === 'target') && event.target) {
             contextBindings[varName] = event.target;
           }
         }
@@ -115,11 +115,12 @@ export class SystemExecutor {
 
       // Rebuild scope after mutations for post_checks
       const postScope = buildScope(contextBindings, this.world);
+      postScope['value'] = scope['value'];
 
       // Evaluate post_checks
       if (def.post_checks) {
-        for (const check of def.post_checks) {
-          this.evaluateConditional(check, contextBindings, postScope);
+        for (const block of def.post_checks) {
+          this.evaluateConditional(block, contextBindings, postScope);
         }
       }
     }
@@ -139,6 +140,7 @@ export class SystemExecutor {
 
         const currentVal = this.world.resolveComponentPath(entity, path);
         const exprResult = evaluate(effect.value, scope);
+        scope['value'] = exprResult;
 
         let newVal: unknown;
         switch (effect.operation) {
@@ -196,6 +198,9 @@ export class SystemExecutor {
         const msg = effect.message.replace(
           /\{([^}]+)\}/g,
           (_, path: string) => {
+            if (path === 'value') {
+              return String(scope['value'] ?? '');
+            }
             const { entity, path: compPath } = this.resolveTargetPath(path, context);
             if (!entity) return path;
             const val = this.world.resolveComponentPath(entity, compPath);

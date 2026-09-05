@@ -48,6 +48,11 @@ function roll(diceStr: string): number {
   return total;
 }
 
+// Register built-in functions directly on the parser so expr-eval permits their execution
+parser.functions.distance = distance;
+parser.functions.roll = roll;
+parser.functions.random = Math.random;
+
 /**
  * Build a flat variable scope from entity context bindings.
  * Converts nested entity component data into dot-path variables
@@ -88,24 +93,13 @@ export function buildScope(
     }
   }
 
-  // Register built-in functions
-  scope['distance'] = (x1: number, y1: number, x2: number, y2: number) =>
-    distance(x1, y1, x2, y2);
-  scope['roll'] = (d: string) => roll(d);
-  scope['max'] = Math.max;
-  scope['min'] = Math.min;
-  scope['abs'] = Math.abs;
-  scope['floor'] = Math.floor;
-  scope['ceil'] = Math.ceil;
-  scope['random'] = () => Math.random();
-
-  // Tag-check functions (need entity references)
-  scope['has_tag'] = (varName: string, tag: string): boolean => {
+  // Register contextual tag-check and component-check functions on parser
+  parser.functions.has_tag = (varName: string, tag: string): boolean => {
     const entity = contextBindings[varName];
     return entity ? entity.tags.has(tag) : false;
   };
 
-  scope['has_component'] = (varName: string, compName: string): boolean => {
+  parser.functions.has_component = (varName: string, compName: string): boolean => {
     const entity = contextBindings[varName];
     return entity ? entity.components.has(compName) : false;
   };

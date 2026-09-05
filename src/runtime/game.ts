@@ -250,10 +250,14 @@ export class Game {
     // Check wall collision
     if (this.map.tiles[targetY]?.[targetX] === TileType.Wall) return;
 
-    // Check for entity at target position (bump attack)
+    // Check for attackable hostile entity at target position
     const targetEntity = this.getEntityAt(targetX, targetY, player.id);
+    const isAttackable = targetEntity && targetEntity.components.has('Health') && (
+      (targetEntity.components.has('Faction') && (targetEntity.components.get('Faction') as any).id !== 'player') ||
+      targetEntity.components.has('CombatStats')
+    );
 
-    if (targetEntity) {
+    if (isAttackable && targetEntity) {
       const targetHealthBefore = (targetEntity.components.get('Health') as { current: number } | undefined)?.current;
 
       // Bump attack — emit ACTION_ATTACK event
@@ -279,7 +283,7 @@ export class Game {
         }
       }
     } else {
-      // Move — emit ACTION_MOVE event
+      // Move onto tile
       pos.x = targetX;
       pos.y = targetY;
       this.executor.emit({
@@ -288,6 +292,41 @@ export class Game {
       });
       this.world.flush();
       sound.playMove();
+
+      // Check for item pickups on this tile
+      const itemsOnTile = this.world.allEntities().filter(e => {
+        if (e.id === player.id) return false;
+        const ePos = e.components.get('Position') as { x: number; y: number } | undefined;
+        return ePos && ePos.x === targetX && ePos.y === targetY;
+      });
+
+      for (const item of itemsOnTile) {
+        const desc = item.components.get('Description') as { name: string; text?: string } | undefined;
+        const name = desc?.name || '';
+        const text = desc?.text || '';
+
+        // Health pack / Repair Kit pickup
+        if (name === 'Repair Kit' || name.includes('Health') || text.includes('Restores') || item.components.has('HealthPack')) {
+          const playerHealth = player.components.get('Health') as { current: number; max: number } | undefined;
+          if (playerHealth) {
+            const healAmount = 25;
+            const oldHp = playerHealth.current;
+            playerHealth.current = Math.min(playerHealth.max, playerHealth.current + healAmount);
+            const actualHeal = playerHealth.current - oldHp;
+
+            this.logCallback(`Picked up ${name || 'Health Pack'} (+${actualHeal} HP)!`);
+            sound.playItem();
+            if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+              (this.renderer as any).addFloatingText(targetX, targetY, `+${actualHeal} HP`, '#00ff88');
+            }
+            this.world.queueDestroy(item.id);
+          }
+        } else if (item.components.has('Equippable')) {
+          this.logCallback(`Found item: ${name || 'Equipment'}!`);
+          sound.playItem();
+        }
+      }
+      this.world.flush();
     }
 
     this.finishTurn(player);
