@@ -96,6 +96,9 @@ describe('Roguelike Expansion: Reach, Spells, Boss Floors, and Relative Speed', 
     const pPos = player.components.get('Position') as { x: number; y: number };
     pPos.x = 5;
     pPos.y = 5;
+    (game as any).map.tiles[5][5] = 0;
+    (game as any).map.tiles[6][5] = 0;
+    (game as any).map.tiles[7][5] = 0;
 
     // Equip spear
     const spear = (game as any).world.spawn('iron_spear');

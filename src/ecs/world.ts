@@ -44,6 +44,11 @@ export class World {
     }
   }
 
+  /** Check if a blueprint is registered */
+  hasBlueprint(blueprintName: string): boolean {
+    return this.blueprints.has(blueprintName);
+  }
+
   /** Create an entity from a blueprint with optional component overrides */
   spawn(blueprintName: string, overrides?: Record<string, Partial<ComponentData>>): Entity {
     const template = this.blueprints.get(blueprintName);

@@ -105,6 +105,27 @@ export function resolveEntitySymbol(entity: Entity | Record<string, any>): Entit
   if (name.includes('lich')) {
     return { symbol: '☠️', color: '#8800ff', label: desc?.name || 'Lich King', category: 'monster' };
   }
+  if (name.includes('cultist') || name.includes('necromancer') || (name.includes('mage') && !name.includes('staff') && !name.includes('hood') && !name.includes('robe'))) {
+    return { symbol: '🔮', color: '#bf55ec', label: desc?.name || 'Cultist Necromancer', category: 'monster' };
+  }
+  if (name.includes('archer')) {
+    return { symbol: '🏹', color: '#44ff88', label: desc?.name || 'Goblin Archer', category: 'monster' };
+  }
+  if (name.includes('berserker')) {
+    return { symbol: '🪓', color: '#ff3344', label: desc?.name || 'Orc Berserker', category: 'monster' };
+  }
+  if (name.includes('assassin') || name.includes('stalker')) {
+    return { symbol: '🥷', color: '#9933ff', label: desc?.name || 'Shadow Assassin', category: 'monster' };
+  }
+  if (name.includes('spike') || name.includes('trap')) {
+    return { symbol: '⚙️', color: '#aa9977', label: desc?.name || 'Spike Trap', category: 'feature' };
+  }
+  if (name.includes('barrel') || name.includes('explosive')) {
+    return { symbol: '🛢️', color: '#ff7700', label: desc?.name || 'Explosive Barrel', category: 'feature' };
+  }
+  if (name.includes('gas') || name.includes('vent')) {
+    return { symbol: '💨', color: '#00ff88', label: desc?.name || 'Poison Gas Vent', category: 'feature' };
+  }
   if (name.includes('orc') || name.includes('champion')) {
     return { symbol: '👹', color: '#ff3355', label: desc?.name || 'Orc Champion', category: 'monster' };
   }

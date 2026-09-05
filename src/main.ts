@@ -191,7 +191,18 @@ function updateStats(player: Entity | undefined): void {
     hpTextEl.textContent = `${health.current} / ${health.max}`;
     hpBarEl.style.width = `${pct}%`;
 
-    if (pct > 60) {
+    const status = game.getPlayerStatus();
+    const badges: string[] = [];
+    if (status?.burning) badges.push(`🔥 BURN (${status.burning}T)`);
+    if (status?.poisoned) badges.push(`🧪 POISON (${status.poisoned}T)`);
+    if (status?.rooted) badges.push(`⛓️ ROOTED (${status.rooted}T)`);
+    if (status?.stunned) badges.push(`💫 STUN (${status.stunned}T)`);
+
+    if (badges.length > 0) {
+      playerStatusBadge.textContent = badges.join(' ');
+      playerStatusBadge.style.color = '#ff3355';
+      playerStatusBadge.style.borderColor = '#ff3355';
+    } else if (pct > 60) {
       playerStatusBadge.textContent = 'NOMINAL';
       playerStatusBadge.style.color = 'var(--green-glow)';
       playerStatusBadge.style.borderColor = 'var(--green-glow)';

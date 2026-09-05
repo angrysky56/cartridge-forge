@@ -68,6 +68,15 @@
       "CombatStats": { "strength": 17, "armor": 4 },
       "Description": { "name": "Dungeon Champion", "text": "A brutal armored guard defending the lower descent." }
     },
+    "orc": {
+      "Position": { "x": 0, "y": 0 },
+      "Renderable": { "glyph": "👹", "color": "#ff3355", "layer": 2 },
+      "Glyph": { "char": "👹", "color": "#ff3355" },
+      "Health": { "current": 65, "max": 65 },
+      "Faction": { "id": "monster" },
+      "CombatStats": { "strength": 17, "armor": 4 },
+      "Description": { "name": "Orc Warrior", "text": "A brutal armored brawler defending the lower descent." }
+    },
     "broadsword": {
       "Position": { "x": 0, "y": 0 },
       "Renderable": { "glyph": "⚔️", "color": "#ffcc00", "layer": 1 },

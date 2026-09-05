@@ -18,6 +18,14 @@ import type { Entity, EntityId } from "../ecs/types.js";
 /** Game state phases */
 export type GamePhase = "LOADING" | "PLAYER_TURN" | "ENEMY_TURN" | "GAME_OVER";
 
+/** Active status ailments with turns remaining */
+export interface EntityStatus {
+  burning?: number;
+  poisoned?: number;
+  rooted?: number;
+  stunned?: number;
+}
+
 type InputAction = { dx?: number; dy?: number; rotate?: number };
 
 /** Turn direction mappings */
@@ -84,6 +92,7 @@ export class Game {
   private frostCooldown = 0;
   private speedBuffTurns = 0;
   private enemyEnergy = new Map<EntityId, number>();
+  private entityStatuses = new Map<EntityId, EntityStatus>();
   private swarmCountdown: number | null = null;
   private activeBossId: EntityId | null = null;
   private shopCallback?: (merchant: Entity) => void;
@@ -144,6 +153,7 @@ export class Game {
     this.frostCooldown = 0;
     this.speedBuffTurns = 0;
     this.enemyEnergy.clear();
+    this.entityStatuses.clear();
     this.swarmCountdown = null;
     this.activeBossId = null;
     this.lastDirection = { dx: 0, dy: -1 };
@@ -453,6 +463,127 @@ export class Game {
           text: "Undead arch-sorcerer ruling the deep catacombs.",
         },
       },
+      orc: {
+        Renderable: { glyph: "👹", color: "#ff3355", layer: 2 },
+        Glyph: { char: "👹", color: "#ff3355" },
+        Health: { current: 65, max: 65 },
+        Faction: { id: "monster" },
+        CombatStats: { strength: 17, armor: 4, speed: 85 },
+        Description: {
+          name: "Orc Warrior",
+          text: "A brutal armored brawler defending the lower descent.",
+        },
+      },
+      orc_guard: {
+        Renderable: { glyph: "👹", color: "#ff3355", layer: 2 },
+        Glyph: { char: "👹", color: "#ff3355" },
+        Health: { current: 65, max: 65 },
+        Faction: { id: "monster" },
+        CombatStats: { strength: 17, armor: 4, speed: 85 },
+        Description: {
+          name: "Dungeon Champion",
+          text: "A brutal armored guard defending the lower descent.",
+        },
+      },
+      goblin_archer: {
+        Renderable: { glyph: "🏹", color: "#88ff00", layer: 2 },
+        Glyph: { char: "🏹", color: "#88ff00" },
+        Health: { current: 32, max: 32 },
+        Faction: { id: "monster" },
+        CombatStats: { strength: 13, armor: 1, speed: 105 },
+        Description: {
+          name: "Goblin Archer",
+          text: "Subterranean sniper firing poisoned arrows from distance.",
+        },
+      },
+      cultist_mage: {
+        Renderable: { glyph: "🔮", color: "#bf55ec", layer: 2 },
+        Glyph: { char: "🔮", color: "#bf55ec" },
+        Health: { current: 45, max: 45 },
+        Faction: { id: "monster" },
+        CombatStats: { strength: 16, armor: 2, speed: 95 },
+        Description: {
+          name: "Cultist Necromancer",
+          text: "Dark sorcerer hurling Shadow Bolts and reanimating skeletal remains.",
+        },
+      },
+      orc_berserker: {
+        Renderable: { glyph: "🪓", color: "#ff0033", layer: 2 },
+        Glyph: { char: "🪓", color: "#ff0033" },
+        Health: { current: 80, max: 80 },
+        Faction: { id: "monster" },
+        CombatStats: { strength: 22, armor: 2, speed: 90 },
+        Description: {
+          name: "Orc Berserker",
+          text: "Frenzied savage wielding twin war axes. Enrages when wounded!",
+        },
+      },
+      shadow_assassin: {
+        Renderable: { glyph: "🥷", color: "#9933ff", layer: 2 },
+        Glyph: { char: "🥷", color: "#9933ff" },
+        Health: { current: 42, max: 42 },
+        Faction: { id: "monster" },
+        CombatStats: { strength: 19, armor: 3, speed: 125 },
+        Description: {
+          name: "Shadow Assassin",
+          text: "Lethal stalker striking from the dark with high evasion.",
+        },
+      },
+      spike_trap: {
+        Renderable: { glyph: "⚙️", color: "#aa9977", layer: 1 },
+        Glyph: { char: "⚙️", color: "#aa9977" },
+        Trap: { damage: 14, rootTurns: 2 },
+        Description: {
+          name: "Spike Trap",
+          text: "Floor pressure plate triggering jagged steel spikes.",
+        },
+      },
+      explosive_barrel: {
+        Renderable: { glyph: "🛢️", color: "#ff7700", layer: 1 },
+        Glyph: { char: "🛢️", color: "#ff7700" },
+        Health: { current: 10, max: 10 },
+        Explosive: { radius: 1, damage: 35 },
+        Description: {
+          name: "Explosive Barrel",
+          text: "Volatile gunpowder keg. Detonates when attacked or ignited!",
+        },
+      },
+      gas_vent: {
+        Renderable: { glyph: "💨", color: "#00ff88", layer: 1 },
+        Glyph: { char: "💨", color: "#00ff88" },
+        GasVent: { damage: 3, poisonTurns: 3 },
+        Description: {
+          name: "Poison Gas Vent",
+          text: "Subterranean fissure spewing toxic noxious vapor.",
+        },
+      },
+      ring_thorns: {
+        Renderable: { glyph: "💍", color: "#39ff14", layer: 1 },
+        Glyph: { char: "💍", color: "#39ff14" },
+        Equippable: { slot: "ring", modifiers: { "CombatStats.armor": 2 } },
+        Description: {
+          name: "Ring of Thorns",
+          text: "Barbed band reflecting 5 physical damage back to attackers.",
+        },
+      },
+      ring_vampire: {
+        Renderable: { glyph: "💍", color: "#ff0055", layer: 1 },
+        Glyph: { char: "💍", color: "#ff0055" },
+        Equippable: { slot: "ring", modifiers: { "CombatStats.strength": 3 } },
+        Description: {
+          name: "Vampiric Ring",
+          text: "Bloodstained ring siphoning 3 HP on every strike.",
+        },
+      },
+      ring_evasion: {
+        Renderable: { glyph: "💍", color: "#00f0ff", layer: 1 },
+        Glyph: { char: "💍", color: "#00f0ff" },
+        Equippable: { slot: "ring", modifiers: { "CombatStats.armor": 1 } },
+        Description: {
+          name: "Ring of Phasing",
+          text: "Phasing band granting +25% chance to dodge attacks.",
+        },
+      },
       ...cartridge.blueprints,
     };
     this.world.registerBlueprints(blueprints);
@@ -632,6 +763,16 @@ export class Game {
     const targetX = pos.x + dx;
     const targetY = pos.y + dy;
 
+    // Check if player is rooted in place
+    if (this.isRooted(player.id)) {
+      const targetEntity = this.getEntityAt(targetX, targetY, player.id);
+      if (!targetEntity || !targetEntity.components.has("Health")) {
+        this.logCallback("You are entangled by spikes/roots and cannot move! (Wait [Space] or attack)");
+        sound.playHit();
+        return;
+      }
+    }
+
     // Check for cracked secret wall collision
     const secretWall = this.getEntityAt(targetX, targetY);
     if (
@@ -666,6 +807,18 @@ export class Game {
 
     // Check for attackable hostile entity at target position (Distance 1)
     const targetEntity = this.getEntityAt(targetX, targetY, player.id);
+
+    // Direct strike on explosive barrel
+    if (
+      targetEntity &&
+      (targetEntity.id.startsWith("explosive_barrel") ||
+        (targetEntity.components.get("Description") as any)?.name?.includes("Barrel"))
+    ) {
+      this.detonateExplosiveBarrel(targetEntity, targetX, targetY);
+      this.finishTurn(player);
+      return;
+    }
+
     const isAttackable =
       targetEntity &&
       targetEntity.components.has("Health") &&
@@ -677,14 +830,29 @@ export class Game {
     const mods = this.inventory.getEquipmentModifiers(player);
     const equippedWeapon = this.inventory.getEquipped(player).weapon;
     const weaponType = equippedWeapon?.components.get("WeaponType") as
-      { category: string; reach?: number } | undefined;
+      { category: string; reach?: number; range?: number } | undefined;
     const hasReach =
       weaponType?.category === "reach" ||
       (weaponType?.reach && weaponType.reach >= 2);
+    const hasRanged = weaponType?.category === "ranged";
 
     const reachX = pos.x + dx * 2;
     const reachY = pos.y + dy * 2;
     const reachEntity = this.getEntityAt(reachX, reachY, player.id);
+
+    // Reach strike on explosive barrel at distance 2
+    if (
+      !isAttackable &&
+      hasReach &&
+      reachEntity &&
+      (reachEntity.id.startsWith("explosive_barrel") ||
+        (reachEntity.components.get("Description") as any)?.name?.includes("Barrel"))
+    ) {
+      this.detonateExplosiveBarrel(reachEntity, reachX, reachY);
+      this.finishTurn(player);
+      return;
+    }
+
     const isReachAttackable =
       !isAttackable &&
       hasReach &&
@@ -696,6 +864,18 @@ export class Game {
 
     if (isAttackable && targetEntity) {
       targetEntity.tags.add("alerted");
+      const targetDesc = (targetEntity.components.get("Description") as any)?.name || "";
+
+      // Shadow Assassin passive evasion (25% dodge)
+      const isAssassin = targetDesc.includes("Assassin") || targetEntity.id.startsWith("shadow_assassin");
+      if (isAssassin && Math.random() < 0.25) {
+        this.addFloatingText(targetX, targetY, "*DODGE!*", "#9933ff");
+        sound.playMove();
+        this.logCallback(`${targetDesc} vanishes into shadow, dodging your strike!`);
+        this.finishTurn(player);
+        return;
+      }
+
       const targetHealthBefore = (
         targetEntity.components.get("Health") as { current: number } | undefined
       )?.current;
@@ -731,6 +911,15 @@ export class Game {
           const dmg = Math.max(1, pStr - tArmor);
           tHealth.current -= dmg;
           targetHealthAfter = tHealth.current;
+        }
+      }
+
+      // Vampiric Ring life leech
+      if (this.playerHasRing("vampire")) {
+        const pHealth = player.components.get("Health") as { current: number; max: number } | undefined;
+        if (pHealth) {
+          pHealth.current = Math.min(pHealth.max, pHealth.current + 3);
+          this.addFloatingText(pos.x, pos.y, "+3 HP", "#ff0055");
         }
       }
 
@@ -782,10 +971,74 @@ export class Game {
         `You thrust your spear across the corridor into ${desc} for ${damage} dmg!`,
       );
 
+      if (this.playerHasRing("vampire")) {
+        const pHealth = player.components.get("Health") as { current: number; max: number } | undefined;
+        if (pHealth) {
+          pHealth.current = Math.min(pHealth.max, pHealth.current + 3);
+          this.addFloatingText(pos.x, pos.y, "+3 HP", "#ff0055");
+        }
+      }
+
       if (eHealth.current <= 0) {
         this.world.queueDestroy(reachEntity.id);
         this.world.flush();
         this.handleMonsterDefeat(reachEntity, reachX, reachY, player);
+      }
+    } else if (!isAttackable && !isReachAttackable && hasRanged) {
+      // Composite Bow ranged shot (traces line up to 6 tiles)
+      let shotHit = false;
+      for (let dist = 1; dist <= 6; dist++) {
+        const sx = pos.x + dx * dist;
+        const sy = pos.y + dy * dist;
+
+        if (this.map.tiles[sy]?.[sx] === TileType.Wall) {
+          break; // Arrow impacts wall
+        }
+
+        const hitEntity = this.getEntityAt(sx, sy, player.id);
+        if (hitEntity && hitEntity.components.has("Health")) {
+          const hitDesc = (hitEntity.components.get("Description") as any)?.name || "Target";
+          if (hitEntity.id.startsWith("explosive_barrel") || hitDesc.includes("Barrel")) {
+            sound.playArrow();
+            this.detonateExplosiveBarrel(hitEntity, sx, sy);
+            shotHit = true;
+            break;
+          }
+
+          hitEntity.tags.add("alerted");
+          sound.playArrow();
+          const pStats = player.components.get("CombatStats") as Record<string, number> | undefined;
+          const pStr = (pStats?.strength || 10) + (mods["CombatStats.strength"] || 0);
+          const eHealth = hitEntity.components.get("Health") as { current: number; max: number };
+          const eStats = hitEntity.components.get("CombatStats") as Record<string, number> | undefined;
+          const eArmor = eStats?.armor || 0;
+          const arrowDmg = Math.max(3, pStr + 2 - eArmor);
+
+          eHealth.current -= arrowDmg;
+          this.addFloatingText(sx, sy, `BOW SHOT! -${arrowDmg}`, "#44ff88");
+          this.logCallback(`You fire an arrow across the hall striking ${hitDesc} for ${arrowDmg} dmg!`);
+          sound.playHit();
+
+          if (this.playerHasRing("vampire")) {
+            const pHealth = player.components.get("Health") as { current: number; max: number } | undefined;
+            if (pHealth) {
+              pHealth.current = Math.min(pHealth.max, pHealth.current + 3);
+              this.addFloatingText(pos.x, pos.y, "+3 HP", "#ff0055");
+            }
+          }
+
+          if (eHealth.current <= 0) {
+            this.world.queueDestroy(hitEntity.id);
+            this.world.flush();
+            this.handleMonsterDefeat(hitEntity, sx, sy, player);
+          }
+          shotHit = true;
+          break;
+        }
+      }
+      if (shotHit) {
+        this.finishTurn(player);
+        return;
       }
     } else {
       // Move onto tile
@@ -797,6 +1050,9 @@ export class Game {
       });
       this.world.flush();
       sound.playMove();
+
+      // Check for tile hazards (spike traps, gas vents)
+      this.checkTileHazards(player, targetX, targetY);
 
       // Check for item pickups and interactive entities on this tile
       const itemsOnTile = this.world.allEntities().filter((e) => {
@@ -1054,7 +1310,6 @@ export class Game {
 
     const dx = targetX - pos.x;
     const dy = targetY - pos.y;
-
     // If clicked adjacent tile, move or attack
     if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0)) {
       this.executeAction({ dx, dy }, player);
@@ -1066,106 +1321,107 @@ export class Game {
 
   /** Complete turn cycle: enemy actions, status effects, and render */
   private finishTurn(player: Entity): void {
-    // Decrement ability and spell cooldowns
-    if (this.dashCooldown > 0) this.dashCooldown--;
-    if (this.bashCooldown > 0) this.bashCooldown--;
-    if (this.fireballCooldown > 0) this.fireballCooldown--;
-    if (this.lightningCooldown > 0) this.lightningCooldown--;
-    if (this.frostCooldown > 0) this.frostCooldown--;
+    try {
+      // Decrement ability and spell cooldowns
+      if (this.dashCooldown > 0) this.dashCooldown--;
+      if (this.bashCooldown > 0) this.bashCooldown--;
+      if (this.fireballCooldown > 0) this.fireballCooldown--;
+      if (this.lightningCooldown > 0) this.lightningCooldown--;
+      if (this.frostCooldown > 0) this.frostCooldown--;
 
-    // Speed buff duration countdown
-    if (this.speedBuffTurns > 0) {
-      this.speedBuffTurns--;
-      if (this.speedBuffTurns === 0) {
-        this.logCallback("The Swiftness Potion effect has worn off.");
+      // Speed buff duration countdown
+      if (this.speedBuffTurns > 0) {
+        this.speedBuffTurns--;
+        if (this.speedBuffTurns === 0) {
+          this.logCallback("The Swiftness Potion effect has worn off.");
+        }
       }
-    }
 
-    // Swarm countdown from war horn
-    if (this.swarmCountdown !== null) {
-      this.swarmCountdown--;
-      const pPos = player.components.get("Position") as {
-        x: number;
-        y: number;
-      };
-      if (this.swarmCountdown > 0) {
-        this.logCallback(
-          `[ALERT] Goblin swarm arrival in ${this.swarmCountdown} turns!`,
-        );
-        this.addFloatingText(
-          pPos.x,
-          pPos.y,
-          `SWARM IN ${this.swarmCountdown}T!`,
-          "#ffaa00",
-        );
-      } else if (this.swarmCountdown <= 0) {
-        this.spawnSwarmReinforcements(player);
-        this.swarmCountdown = null;
+      // Swarm countdown from war horn
+      if (this.swarmCountdown !== null) {
+        this.swarmCountdown--;
+        const pPos = player.components.get("Position") as {
+          x: number;
+          y: number;
+        } | undefined;
+        if (this.swarmCountdown > 0 && pPos) {
+          this.logCallback(
+            `[ALERT] Goblin swarm arrival in ${this.swarmCountdown} turns!`,
+          );
+          this.addFloatingText(
+            pPos.x,
+            pPos.y,
+            `SWARM IN ${this.swarmCountdown}T!`,
+            "#ffaa00",
+          );
+        } else if (this.swarmCountdown <= 0) {
+          this.spawnSwarmReinforcements(player);
+          this.swarmCountdown = null;
+        }
       }
-    }
 
-    // Check if player died before enemy turn
-    if (!this.world.getEntity(this.playerId!)) {
-      this.phase = "GAME_OVER";
-      sound.playGameOver();
-      this.logCallback("=== GAME OVER ===");
-      this.render();
-      return;
-    }
+      // Check if player died before enemy turn
+      if (!this.world.getEntity(this.playerId!)) {
+        this.phase = "GAME_OVER";
+        sound.playGameOver();
+        this.logCallback("=== GAME OVER ===");
+        this.render();
+        return;
+      }
 
-    // Enemy turn with relative energy clock
-    const playerHealthBefore = (
-      player.components.get("Health") as { current: number } | undefined
-    )?.current;
-    this.processEnemyTurns(player);
-    this.world.flush();
+      // Enemy turn with relative energy clock
+      const playerHealthBefore = (
+        player.components.get("Health") as { current: number } | undefined
+      )?.current;
+      this.processEnemyTurns(player);
+      this.world.flush();
 
-    const playerHealthAfter = (
-      player.components.get("Health") as { current: number } | undefined
-    )?.current;
-    if (
-      playerHealthBefore !== undefined &&
-      playerHealthAfter !== undefined &&
-      playerHealthBefore > playerHealthAfter
-    ) {
-      const dmg = playerHealthBefore - playerHealthAfter;
-      const pPos = player.components.get("Position") as
-        { x: number; y: number } | undefined;
+      const playerHealthAfter = (
+        player.components.get("Health") as { current: number } | undefined
+      )?.current;
       if (
-        pPos &&
-        this.renderer &&
-        "addFloatingText" in (this.renderer as any)
+        playerHealthBefore !== undefined &&
+        playerHealthAfter !== undefined &&
+        playerHealthBefore > playerHealthAfter
       ) {
-        (this.renderer as any).addFloatingText(
-          pPos.x,
-          pPos.y,
-          `-${dmg}`,
-          "#ff0033",
-        );
+        const dmg = playerHealthBefore - playerHealthAfter;
+        const pPos = player.components.get("Position") as
+          { x: number; y: number } | undefined;
+        if (pPos) {
+          this.addFloatingText(pPos.x, pPos.y, `-${dmg}`, "#ff0033");
+        }
+        sound.playHit();
       }
-      sound.playHit();
-    }
 
-    // Check player again after enemy actions
-    if (!this.world.getEntity(this.playerId!)) {
-      this.phase = "GAME_OVER";
-      sound.playGameOver();
-      this.logCallback("=== GAME OVER ===");
+      // Process Status Effects (Burning, Poisoned, Rooted, Stunned)
+      this.processStatusEffects();
+
+      // Check player again after enemy actions and statuses
+      if (!this.world.getEntity(this.playerId!)) {
+        this.phase = "GAME_OVER";
+        sound.playGameOver();
+        this.logCallback("=== GAME OVER ===");
+        this.render();
+        return;
+      }
+
+      // Emit TURN_END for status/turn effects
+      this.turnCount++;
+      this.executor.emit({ name: "TURN_END", source: player });
+      this.world.flush();
+    } catch (turnErr) {
+      console.error("[CartridgeForge] Error during finishTurn execution:", turnErr);
+    } finally {
+      if (this.phase !== "GAME_OVER") {
+        this.phase = "PLAYER_TURN";
+      }
       this.render();
-      return;
+      const p = this.world.getEntity(this.playerId!);
+      if (p) this.statsCallback(p);
     }
-
-    // Emit TURN_END for status/turn effects
-    this.turnCount++;
-    this.executor.emit({ name: "TURN_END", source: player });
-    this.world.flush();
-
-    this.phase = "PLAYER_TURN";
-    this.render();
-    this.statsCallback(this.world.getEntity(this.playerId!));
   }
 
-  /** Sensory Enemy AI with Relative Speed Energy System */
+  /** Sensory Enemy AI with Relative Speed Energy System & Tactical Archetypes */
   private processEnemyTurns(player: Entity): void {
     const playerPos = player.components.get("Position") as {
       x: number;
@@ -1175,7 +1431,7 @@ export class Game {
 
     const enemies = this.world.allEntities().filter((e) => {
       const faction = e.components.get("Faction") as { id: string } | undefined;
-      return faction && faction.id !== "player" && e.components.has("Position");
+      return faction && faction.id !== "player" && e.components.has("Position") && e.components.has("Health");
     });
 
     for (const enemy of enemies) {
@@ -1184,8 +1440,9 @@ export class Game {
         continue;
       }
 
-      // Check Hornblower alert trigger for swarm countdown
       const desc = (enemy.components.get("Description") as any)?.name || "";
+
+      // Check Hornblower alert trigger for swarm countdown
       if (
         (desc.includes("Horn") || enemy.id.startsWith("horn_scout")) &&
         enemy.tags.has("alerted") &&
@@ -1209,21 +1466,16 @@ export class Game {
       }
 
       // If stunned, consume stun effect and reset energy
-      if (enemy.tags.has("stunned")) {
+      if (enemy.tags.has("stunned") || this.isStunned(enemy.id)) {
         enemy.tags.delete("stunned");
+        const st = this.entityStatuses.get(enemy.id);
+        if (st?.stunned) delete st.stunned;
         this.enemyEnergy.set(enemy.id, 0);
         const ePos = enemy.components.get("Position") as {
           x: number;
           y: number;
         };
-        if (this.renderer && "addFloatingText" in (this.renderer as any)) {
-          (this.renderer as any).addFloatingText(
-            ePos.x,
-            ePos.y,
-            "STUNNED",
-            "#ffaa00",
-          );
-        }
+        this.addFloatingText(ePos.x, ePos.y, "STUNNED", "#ffaa00");
         continue;
       }
 
@@ -1248,6 +1500,11 @@ export class Game {
       );
       let currentEnergy = (this.enemyEnergy.get(enemy.id) || 0) + energyGain;
 
+      const isArcher = desc.includes("Archer") || enemy.id.startsWith("goblin_archer");
+      const isCultist = desc.includes("Cultist") || desc.includes("Necromancer") || enemy.id.startsWith("cultist_mage");
+      const isBerserker = desc.includes("Berserker") || enemy.id.startsWith("orc_berserker");
+      const isBoss = enemy.id === this.activeBossId || enemy.tags.has("boss");
+
       while (currentEnergy >= 100) {
         currentEnergy -= 100;
         this.executor.emit({ name: "TURN_START", source: enemy });
@@ -1258,7 +1515,132 @@ export class Game {
         };
         const curAdx = Math.abs(playerPos.x - currPos.x);
         const curAdy = Math.abs(playerPos.y - currPos.y);
+        const curDist = Math.max(curAdx, curAdy);
+        const isRooted = this.isRooted(enemy.id);
 
+        // 1. Cultist Necromancer: Corpse Reanimation or Shadow Bolt
+        if (isCultist) {
+          // Check for nearby skeletal remains within 4 tiles to resurrect
+          const corpse = this.world.allEntities().find((e) => {
+            const d = (e.components.get("Description") as any)?.name || "";
+            if (!d.includes("Remains") && !d.includes("Corpse") && !e.id.startsWith("corpse")) return false;
+            const cPos = e.components.get("Position") as { x: number; y: number } | undefined;
+            if (!cPos) return false;
+            const dist = Math.abs(cPos.x - currPos.x) + Math.abs(cPos.y - currPos.y);
+            return dist <= 4 && !this.getEntityAt(cPos.x, cPos.y, e.id);
+          });
+
+          if (corpse) {
+            const cPos = corpse.components.get("Position") as { x: number; y: number };
+            this.world.queueDestroy(corpse.id);
+            this.world.flush();
+            const skel = this.world.spawn("skeleton", { Position: { x: cPos.x, y: cPos.y } });
+            skel.tags.add("alerted");
+            sound.playAbility();
+            this.addFloatingText(cPos.x, cPos.y, "*REANIMATE!*", "#bf55ec");
+            this.logCallback(`${desc} casts dark necromancy, raising a Skeleton from remains!`);
+            continue;
+          }
+
+          // Otherwise cast Shadow Bolt from distance 2-4
+          if (curDist >= 2 && curDist <= 4 && this.hasLineOfSight(currPos.x, currPos.y, playerPos.x, playerPos.y)) {
+            sound.playAbility();
+            const boltDmg = 14;
+            const pHealth = player.components.get("Health") as { current: number; max: number };
+            pHealth.current -= boltDmg;
+            this.addFloatingText(playerPos.x, playerPos.y, `-${boltDmg} SHADOW BOLT`, "#bf55ec");
+            this.logCallback(`${desc} hurls a crackling Shadow Bolt for ${boltDmg} magic damage!`);
+            sound.playHit();
+            continue;
+          }
+        }
+
+        // 2. Goblin Archer: Kiting Retreat or Barbed Arrow
+        if (isArcher) {
+          // If player is adjacent, retreat 1 step away!
+          if (curDist === 1 && !isRooted) {
+            const rdx = Math.sign(currPos.x - playerPos.x);
+            const rdy = Math.sign(currPos.y - playerPos.y);
+            const retreatOpts = [
+              { dx: rdx, dy: rdy },
+              { dx: rdx, dy: 0 },
+              { dx: 0, dy: rdy },
+            ];
+            let retreated = false;
+            for (const opt of retreatOpts) {
+              if (opt.dx === 0 && opt.dy === 0) continue;
+              const rx = currPos.x + opt.dx;
+              const ry = currPos.y + opt.dy;
+              if (this.map.tiles[ry]?.[rx] === TileType.Floor && !this.getEntityAt(rx, ry)) {
+                currPos.x = rx;
+                currPos.y = ry;
+                this.checkTileHazards(enemy, rx, ry);
+                retreated = true;
+                this.addFloatingText(rx, ry, "KITES", "#88ff00");
+                break;
+              }
+            }
+            if (retreated) continue;
+          }
+
+          // Shoot arrow if at distance 2 to 5 with Line of Sight
+          if (curDist >= 2 && curDist <= 5 && this.hasLineOfSight(currPos.x, currPos.y, playerPos.x, playerPos.y)) {
+            sound.playArrow();
+            const pStats = player.components.get("CombatStats") as Record<string, number> | undefined;
+            const pArmor = (pStats?.armor || 0) + (this.inventory.getEquipmentModifiers(player)["CombatStats.armor"] || 0);
+            const arrowDmg = Math.max(2, 13 - Math.floor(pArmor * 0.5));
+            const pHealth = player.components.get("Health") as { current: number; max: number };
+            pHealth.current -= arrowDmg;
+            this.addFloatingText(playerPos.x, playerPos.y, `-${arrowDmg} ARROW`, "#88ff00");
+            this.logCallback(`${desc} fires an arrow at you for ${arrowDmg} dmg!`);
+            sound.playHit();
+
+            if (Math.random() < 0.3) {
+              this.applyStatus(player.id, "poisoned", 3);
+              this.addFloatingText(playerPos.x, playerPos.y, "POISONED (3T)", "#39ff14");
+              this.logCallback("The arrow tip was laced with poison!");
+            }
+            continue;
+          }
+        }
+
+        // 3. Orc Berserker: Bloodlust Enrage below 50% HP
+        if (isBerserker) {
+          const eHealth = enemy.components.get("Health") as { current: number; max: number };
+          if (eHealth.current < eHealth.max * 0.5 && !enemy.tags.has("enraged")) {
+            enemy.tags.add("enraged");
+            const eStats = enemy.components.get("CombatStats") as any;
+            if (eStats) eStats.strength = Math.floor((eStats.strength || 22) * 1.5);
+            this.addFloatingText(currPos.x, currPos.y, "*ENRAGED!*", "#ff0033");
+            this.logCallback(`*** ${desc} goes BERSERK! Attack power dramatically surged! ***`);
+          }
+        }
+
+        // 4. Minotaur Bull Rush Charge
+        if (isBoss && desc.includes("Minotaur") && !isRooted) {
+          const isStraight = currPos.x === playerPos.x || currPos.y === playerPos.y;
+          if (isStraight && curDist >= 2 && curDist <= 5 && this.hasLineOfSight(currPos.x, currPos.y, playerPos.x, playerPos.y)) {
+            const cdx = Math.sign(playerPos.x - currPos.x);
+            const cdy = Math.sign(playerPos.y - currPos.y);
+            const stopX = playerPos.x - cdx;
+            const stopY = playerPos.y - cdy;
+
+            currPos.x = stopX;
+            currPos.y = stopY;
+            this.addFloatingText(stopX, stopY, "*BULL RUSH!*", "#ff0055");
+            this.logCallback("The Minotaur lowers its horns and charges headlong into you!");
+            sound.playAttack();
+
+            const pHealth = player.components.get("Health") as { current: number; max: number };
+            const rushDmg = 22;
+            pHealth.current -= rushDmg;
+            this.addFloatingText(playerPos.x, playerPos.y, `-${rushDmg}`, "#ff0033");
+            sound.playHit();
+            continue;
+          }
+        }
+
+        // 5. Standard Melee Navigation & Attack
         const dx = Math.sign(playerPos.x - currPos.x);
         const dy = Math.sign(playerPos.y - currPos.y);
 
@@ -1281,16 +1663,68 @@ export class Game {
 
           if (this.map.tiles[ny]?.[nx] !== TileType.Floor) continue;
 
-          // Check if player is there -> attack
+          // Check if player is on target tile -> attack
           if (nx === playerPos.x && ny === playerPos.y) {
+            // Check player Phasing Ring evasion
+            if (this.playerHasRing("evasion") || this.playerHasRing("phasing")) {
+              if (Math.random() < 0.25) {
+                this.addFloatingText(playerPos.x, playerPos.y, "*EVADED!*", "#00f0ff");
+                this.logCallback("You phase out of reach, completely avoiding the strike!");
+                sound.playMove();
+                acted = true;
+                break;
+              }
+            }
+
             this.executor.emit({
               name: "ACTION_ATTACK",
               source: enemy,
               target: player,
             });
+
+            // Handle Champion & Berserker attack modifiers
+            if (enemy.tags.has("champion_flaming")) {
+              this.applyStatus(player.id, "burning", 2);
+              this.addFloatingText(playerPos.x, playerPos.y, "BURNING (2T)", "#ff5500");
+            }
+            if (enemy.tags.has("champion_vampiric")) {
+              const eHealth = enemy.components.get("Health") as { current: number; max: number };
+              eHealth.current = Math.min(eHealth.max, eHealth.current + 5);
+              this.addFloatingText(currPos.x, currPos.y, "+5 HP", "#ff0055");
+            }
+
+            // Berserker 40% knockback
+            if (isBerserker && Math.random() < 0.4) {
+              const kx = playerPos.x + dx;
+              const ky = playerPos.y + dy;
+              if (this.map.tiles[ky]?.[kx] === TileType.Floor && !this.getEntityAt(kx, ky)) {
+                playerPos.x = kx;
+                playerPos.y = ky;
+                this.addFloatingText(kx, ky, "*KNOCKBACK!*", "#ffaa00");
+                this.logCallback(`${desc} slams you backward with tremendous momentum!`);
+                this.checkTileHazards(player, kx, ky);
+              }
+            }
+
+            // Ring of Thorns damage reflection
+            if (this.playerHasRing("thorns")) {
+              const eHealth = enemy.components.get("Health") as { current: number; max: number };
+              eHealth.current -= 5;
+              this.addFloatingText(currPos.x, currPos.y, "-5 THORNS", "#39ff14");
+              this.logCallback("Your Ring of Thorns impales the attacker for 5 reflected damage!");
+              if (eHealth.current <= 0) {
+                this.world.queueDestroy(enemy.id);
+                this.world.flush();
+                this.handleMonsterDefeat(enemy, currPos.x, currPos.y, player);
+              }
+            }
+
             acted = true;
             break;
           }
+
+          // If rooted, enemy cannot move to an empty tile
+          if (isRooted) continue;
 
           // Check if blocked by another entity
           if (this.getEntityAt(nx, ny)) continue;
@@ -1298,6 +1732,7 @@ export class Game {
           // Move
           currPos.x = nx;
           currPos.y = ny;
+          this.checkTileHazards(enemy, nx, ny);
           acted = true;
           break;
         }
@@ -1380,29 +1815,336 @@ export class Game {
     }
   }
 
+  /** Apply a status ailment to an entity */
+  applyStatus(entityId: EntityId, status: keyof EntityStatus, duration: number): void {
+    const cur = this.entityStatuses.get(entityId) || {};
+    cur[status] = Math.max(cur[status] || 0, duration);
+    this.entityStatuses.set(entityId, cur);
+  }
+
+  /** Check if entity is currently rooted */
+  isRooted(entityId: EntityId): boolean {
+    return (this.entityStatuses.get(entityId)?.rooted || 0) > 0;
+  }
+
+  /** Check if entity is currently stunned */
+  isStunned(entityId: EntityId): boolean {
+    return (this.entityStatuses.get(entityId)?.stunned || 0) > 0;
+  }
+
+  /** Public getter for player active status ailments */
+  getPlayerStatus(): EntityStatus | undefined {
+    return this.playerId ? this.entityStatuses.get(this.playerId) : undefined;
+  }
+
+  /** Check if player has an equipped ring matching keyword */
+  playerHasRing(keyword: string): boolean {
+    const player = this.getPlayer();
+    if (!player) return false;
+    const equipped = this.inventory.getEquipped(player);
+    const ring = equipped.ring;
+    if (!ring) return false;
+    const desc = (ring.components.get("Description") as any)?.name || "";
+    return ring.id.includes(keyword) || desc.toLowerCase().includes(keyword.toLowerCase());
+  }
+
+  /** Raycasting Bresenham Line-of-Sight check between two tiles */
+  hasLineOfSight(x0: number, y0: number, x1: number, y1: number): boolean {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+
+    let cx = x0;
+    let cy = y0;
+
+    while (cx !== x1 || cy !== y1) {
+      if ((cx !== x0 || cy !== y0) && (cx !== x1 || cy !== y1)) {
+        if (this.map.tiles[cy]?.[cx] === TileType.Wall) {
+          return false;
+        }
+      }
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        cx += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        cy += sy;
+      }
+    }
+    return true;
+  }
+
+  /** Check if entering a tile triggers a hazard (Spike Trap, Gas Vent) */
+  checkTileHazards(entity: Entity, x: number, y: number): void {
+    const isPlayer = entity.id === this.playerId;
+    const desc = (entity.components.get("Description") as any)?.name || (isPlayer ? "You" : "Creature");
+    const eHealth = entity.components.get("Health") as { current: number; max: number } | undefined;
+
+    const hazardsOnTile = this.world.allEntities().filter((e) => {
+      if (e.id === entity.id) return false;
+      const pos = e.components.get("Position") as { x: number; y: number } | undefined;
+      return pos && pos.x === x && pos.y === y;
+    });
+
+    for (const h of hazardsOnTile) {
+      const hDesc = (h.components.get("Description") as any)?.name || "";
+
+      // 1. Spike Trap
+      if (h.components.has("Trap") || hDesc.includes("Spike Trap") || h.id.startsWith("spike_trap")) {
+        sound.playTrap();
+        if (eHealth) {
+          const trapDmg = 14;
+          eHealth.current -= trapDmg;
+          this.addFloatingText(x, y, `SNAP! -${trapDmg}`, "#aa9977");
+          this.logCallback(`${desc} triggered a Spike Trap! Took ${trapDmg} physical damage!`);
+        }
+        this.applyStatus(entity.id, "rooted", 2);
+        this.addFloatingText(x, y, "ROOTED (2T)", "#aa9977");
+      }
+
+      // 2. Gas Vent
+      else if (h.components.has("GasVent") || hDesc.includes("Gas Vent") || h.id.startsWith("gas_vent")) {
+        this.applyStatus(entity.id, "poisoned", 3);
+        this.addFloatingText(x, y, "POISON GAS!", "#00ff88");
+        this.logCallback(`${desc} inhaled toxic vapors from the Poison Gas Vent!`);
+      }
+    }
+  }
+
+  /** Detonate an explosive barrel with 3x3 blast radius and chain reactions */
+  detonateExplosiveBarrel(barrel: Entity, bx: number, by: number, visited = new Set<EntityId>()): void {
+    if (visited.has(barrel.id)) return;
+    visited.add(barrel.id);
+
+    this.world.queueDestroy(barrel.id);
+    this.world.flush();
+    sound.playExplosion();
+    this.addFloatingText(bx, by, "*BOOM!*", "#ff7700");
+    this.logCallback("*** AN EXPLOSIVE BARREL DETONATES! Blast rocks the area! ***");
+
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const tx = bx + dx;
+        const ty = by + dy;
+
+        // Check cracked secret walls
+        const wall = this.getEntityAt(tx, ty);
+        if (wall && (wall.id.startsWith("cracked_wall") || (wall.components.get("Description") as any)?.name?.includes("Cracked"))) {
+          this.map.tiles[ty][tx] = TileType.Floor;
+          this.world.queueDestroy(wall.id);
+          this.world.flush();
+          this.secretsFound++;
+          this.addFloatingText(tx, ty, "SECRET FOUND!", "#00ffcc");
+          this.logCallback("The explosion blasted through a hidden chamber!");
+          continue;
+        }
+
+        const ent = this.getEntityAt(tx, ty);
+        if (ent && ent.components.has("Health")) {
+          const desc = (ent.components.get("Description") as any)?.name || "";
+          if (ent.id.startsWith("explosive_barrel") || desc.includes("Barrel")) {
+            // Chain detonate
+            this.detonateExplosiveBarrel(ent, tx, ty, visited);
+            continue;
+          }
+
+          const hp = ent.components.get("Health") as { current: number; max: number };
+          const blastDmg = 35;
+          hp.current -= blastDmg;
+          this.applyStatus(ent.id, "burning", 2);
+          this.addFloatingText(tx, ty, `-${blastDmg} BLAST`, "#ff3300");
+          this.logCallback(`${desc || (ent.id === this.playerId ? "You" : "Target")} is blasted for ${blastDmg} explosive damage!`);
+
+          if (hp.current <= 0) {
+            if (ent.id !== this.playerId) {
+              this.world.queueDestroy(ent.id);
+              this.world.flush();
+              const p = this.getPlayer();
+              if (p) this.handleMonsterDefeat(ent, tx, ty, p);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /** Process active status effects at turn end */
+  processStatusEffects(): void {
+    for (const [entityId, status] of Array.from(this.entityStatuses.entries())) {
+      const entity = this.world.getEntity(entityId);
+      if (!entity) {
+        this.entityStatuses.delete(entityId);
+        continue;
+      }
+
+      const ePos = entity.components.get("Position") as { x: number; y: number } | undefined;
+      const eHealth = entity.components.get("Health") as { current: number; max: number } | undefined;
+      const isPlayer = entityId === this.playerId;
+      const eDesc = (entity.components.get("Description") as any)?.name || (isPlayer ? "You" : "Creature");
+
+      // 1. Burning (4 fire dmg per turn)
+      if (status.burning && status.burning > 0) {
+        status.burning--;
+        if (eHealth) {
+          const burnDmg = 4;
+          eHealth.current -= burnDmg;
+          if (ePos) this.addFloatingText(ePos.x, ePos.y, `BURN -${burnDmg}`, "#ff5500");
+          this.logCallback(`${eDesc} burns for ${burnDmg} fire damage!`);
+        }
+        if (status.burning === 0) delete status.burning;
+      }
+
+      // 2. Poisoned (3 pure dmg per turn)
+      if (status.poisoned && status.poisoned > 0) {
+        status.poisoned--;
+        if (eHealth) {
+          const poisonDmg = 3;
+          eHealth.current -= poisonDmg;
+          if (ePos) this.addFloatingText(ePos.x, ePos.y, `POISON -${poisonDmg}`, "#39ff14");
+          this.logCallback(`${eDesc} suffers ${poisonDmg} poison damage!`);
+        }
+        if (status.poisoned === 0) delete status.poisoned;
+      }
+
+      // 3. Rooted
+      if (status.rooted && status.rooted > 0) {
+        status.rooted--;
+        if (status.rooted === 0) {
+          delete status.rooted;
+          this.logCallback(`${eDesc} broke free from entanglement!`);
+        }
+      }
+
+      // 4. Stunned
+      if (status.stunned && status.stunned > 0) {
+        status.stunned--;
+        if (status.stunned === 0) delete status.stunned;
+      }
+
+      // Check death
+      if (eHealth && eHealth.current <= 0) {
+        if (!isPlayer) {
+          this.world.queueDestroy(entity.id);
+          this.world.flush();
+          const p = this.getPlayer();
+          if (p && ePos) this.handleMonsterDefeat(entity, ePos.x, ePos.y, p);
+        }
+      }
+
+      if (Object.keys(status).length === 0) {
+        this.entityStatuses.delete(entityId);
+      }
+    }
+  }
+
+  /** Dimensional teleport warp to distant safe floor tile */
+  executeTeleport(player: Entity, scrollItem?: Entity): boolean {
+    const pPos = player.components.get("Position") as { x: number; y: number } | undefined;
+    if (!pPos) return false;
+
+    // Search floor tiles at least 6 tiles away
+    const candidates = this.map.floorTiles.filter((t) => {
+      if (this.map.tiles[t.y]?.[t.x] !== TileType.Floor) return false;
+      const dist = Math.abs(t.x - pPos.x) + Math.abs(t.y - pPos.y);
+      return dist >= 6 && !this.getEntityAt(t.x, t.y);
+    });
+
+    let target = candidates.length > 0
+      ? candidates[Math.floor(Math.random() * candidates.length)]
+      : null;
+
+    if (!target) {
+      const anyFloor = this.map.floorTiles.filter((t) =>
+        this.map.tiles[t.y]?.[t.x] === TileType.Floor &&
+        (t.x !== pPos.x || t.y !== pPos.y) &&
+        !this.getEntityAt(t.x, t.y)
+      );
+      if (anyFloor.length > 0) {
+        target = anyFloor[Math.floor(Math.random() * anyFloor.length)];
+      }
+    }
+
+    if (!target) {
+      this.logCallback("Dimensional distortion prevents teleportation here!");
+      sound.playHit();
+      return false;
+    }
+
+    if (scrollItem) {
+      this.inventory.removeFromBackpack(player, scrollItem.id);
+      this.world.queueDestroy(scrollItem.id);
+      this.world.flush();
+    }
+
+    // Purge roots
+    const st = this.entityStatuses.get(player.id);
+    if (st && st.rooted) {
+      delete st.rooted;
+    }
+
+    pPos.x = target.x;
+    pPos.y = target.y;
+
+    sound.playAbility();
+    this.addFloatingText(target.x, target.y, "*BLINK*", "#00ffff");
+    this.logCallback("Reality folds around you as you teleport to safety!");
+
+    if (this.renderer && "centerOn" in (this.renderer as any)) {
+      (this.renderer as any).centerOn(target.x, target.y);
+    }
+
+    this.finishTurn(player);
+    return true;
+  }
+
   /** Spawn goblin/orc reinforcements when a war horn countdown completes */
   private spawnSwarmReinforcements(player: Entity): void {
-    const pPos = player.components.get("Position") as { x: number; y: number };
-    sound.playHorn();
-    this.addFloatingText(pPos.x, pPos.y, "SWARM ARRIVED!", "#ff0033");
-    this.logCallback("!!! WAR HORNS RESOUND! A goblin horde ambushes you! !!!");
+    try {
+      const pPos = player.components.get("Position") as { x: number; y: number };
+      sound.playHorn();
+      this.addFloatingText(pPos.x, pPos.y, "SWARM ARRIVED!", "#ff0033");
+      this.logCallback("!!! WAR HORNS RESOUND! A goblin horde ambushes you! !!!");
 
-    const candidates = this.map.floorTiles.filter((t) => {
-      const dist = Math.abs(t.x - pPos.x) + Math.abs(t.y - pPos.y);
-      return dist >= 3 && dist <= 7 && !this.getEntityAt(t.x, t.y);
-    });
-    this.shuffleArray(candidates);
-
-    const swarmCount = Math.min(
-      3 + Math.floor(this.depth / 2),
-      candidates.length,
-    );
-    for (let i = 0; i < swarmCount; i++) {
-      const pos = candidates[i];
-      const swarmEnemy = this.world.spawn(this.depth > 2 ? "orc" : "goblin", {
-        Position: { x: pos.x, y: pos.y },
+      const candidates = this.map.floorTiles.filter((t) => {
+        const dist = Math.abs(t.x - pPos.x) + Math.abs(t.y - pPos.y);
+        return dist >= 3 && dist <= 7 && !this.getEntityAt(t.x, t.y);
       });
-      swarmEnemy.tags.add("alerted");
+      this.shuffleArray(candidates);
+
+      const swarmCount = Math.min(
+        3 + Math.floor(this.depth / 2),
+        candidates.length,
+      );
+      for (let i = 0; i < swarmCount; i++) {
+        const pos = candidates[i];
+        let bp = "goblin";
+        if (this.depth > 3) {
+          bp = this.world.hasBlueprint("orc_berserker")
+            ? "orc_berserker"
+            : this.world.hasBlueprint("orc")
+              ? "orc"
+              : "goblin";
+        } else if (this.depth > 1) {
+          bp = this.world.hasBlueprint("orc")
+            ? "orc"
+            : this.world.hasBlueprint("orc_guard")
+              ? "orc_guard"
+              : "goblin";
+        }
+        const swarmEnemy = this.world.spawn(bp, {
+          Position: { x: pos.x, y: pos.y },
+        });
+        swarmEnemy.tags.add("alerted");
+      }
+    } catch (err) {
+      console.error("[CartridgeForge] Error in spawnSwarmReinforcements:", err);
+      this.logCallback("[ALERT] The swarm scattered into dark tunnels!");
+    } finally {
+      this.swarmCountdown = null;
     }
   }
 
@@ -1568,13 +2310,82 @@ export class Game {
       if (secretPlaced) break;
     }
 
-    // 5. Spawn Goblin Horn Scout at depth >= 2
+    // 5. Spawn Spike Traps (depth >= 1)
+    const trapCount = 2 + Math.min(3, Math.floor(this.depth * 0.7));
+    for (let i = 0; i < trapCount && spawnIdx < available.length; i++) {
+      const pos = available[spawnIdx++];
+      this.world.spawn("spike_trap", { Position: { x: pos.x, y: pos.y } });
+    }
+
+    // 6. Spawn Explosive Barrels (depth >= 1)
+    const barrelCount = 2 + Math.min(3, Math.floor(this.depth * 0.6));
+    for (let i = 0; i < barrelCount && spawnIdx < available.length; i++) {
+      const pos = available[spawnIdx++];
+      this.world.spawn("explosive_barrel", { Position: { x: pos.x, y: pos.y } });
+    }
+
+    // 7. Spawn Gas Vents (depth >= 2)
+    if (this.depth >= 2) {
+      const ventCount = 1 + Math.floor(this.depth / 3);
+      for (let i = 0; i < ventCount && spawnIdx < available.length; i++) {
+        const pos = available[spawnIdx++];
+        this.world.spawn("gas_vent", { Position: { x: pos.x, y: pos.y } });
+      }
+    }
+
+    // Helper to roll champion modifiers on deeper floors
+    const applyChampion = (enemy: Entity) => {
+      if (this.depth >= 2 && Math.random() < 0.25) {
+        const champTypes = ["swift", "flaming", "armored", "vampiric"];
+        const champType = champTypes[Math.floor(Math.random() * champTypes.length)];
+        enemy.tags.add("champion");
+        enemy.tags.add(`champion_${champType}`);
+
+        const descComp = enemy.components.get("Description") as any;
+        if (descComp) {
+          const prefix = champType.charAt(0).toUpperCase() + champType.slice(1);
+          descComp.name = `[${prefix}] ${descComp.name}`;
+        }
+
+        const eStats = enemy.components.get("CombatStats") as any;
+        if (eStats) {
+          if (champType === "swift") eStats.speed = (eStats.speed || 90) + 35;
+          if (champType === "armored") eStats.armor = (eStats.armor || 1) + 5;
+          if (champType === "flaming") eStats.strength = (eStats.strength || 10) + 4;
+          if (champType === "vampiric") eStats.strength = (eStats.strength || 10) + 2;
+        }
+      }
+    };
+
+    // 8. Spawn Goblin Horn Scout at depth >= 2
     if (this.depth >= 2 && spawnIdx < available.length) {
       const pos = available[spawnIdx++];
       this.world.spawn("horn_scout", { Position: { x: pos.x, y: pos.y } });
     }
 
-    // 6. Spawn enemies from spawn_table (with depth scaling)
+    // 9. Spawn Tactical Monster Archetypes
+    if (this.depth >= 2 && spawnIdx < available.length) {
+      const pos = available[spawnIdx++];
+      const archer = this.world.spawn("goblin_archer", { Position: { x: pos.x, y: pos.y } });
+      applyChampion(archer);
+    }
+    if (this.depth >= 2 && spawnIdx < available.length) {
+      const pos = available[spawnIdx++];
+      const berserker = this.world.spawn("orc_berserker", { Position: { x: pos.x, y: pos.y } });
+      applyChampion(berserker);
+    }
+    if (this.depth >= 3 && spawnIdx < available.length) {
+      const pos = available[spawnIdx++];
+      const cultist = this.world.spawn("cultist_mage", { Position: { x: pos.x, y: pos.y } });
+      applyChampion(cultist);
+    }
+    if (this.depth >= 4 && spawnIdx < available.length) {
+      const pos = available[spawnIdx++];
+      const assassin = this.world.spawn("shadow_assassin", { Position: { x: pos.x, y: pos.y } });
+      applyChampion(assassin);
+    }
+
+    // 10. Spawn standard enemies from cartridge spawn_table (with depth scaling)
     if (this.cartridge?.world_gen.spawn_table) {
       for (const entry of this.cartridge.world_gen.spawn_table) {
         const count = entry.max_per_level ?? 5;
@@ -1584,6 +2395,7 @@ export class Game {
             const enemy = this.world.spawn(entry.blueprint, {
               Position: { x: pos.x, y: pos.y },
             });
+            applyChampion(enemy);
             const eHealth = enemy.components.get("Health") as
               { current: number; max: number } | undefined;
             if (eHealth && this.depth > 1) {
@@ -1792,26 +2604,34 @@ export class Game {
         const tx = cx + dx;
         const ty = cy + dy;
         const enemy = this.getEntityAt(tx, ty, player.id);
-        if (
-          enemy &&
-          enemy.components.has("Health") &&
-          ((enemy.components.has("Faction") &&
-            (enemy.components.get("Faction") as any).id !== "player") ||
-            enemy.components.has("CombatStats"))
-        ) {
-          enemy.tags.add("alerted");
-          const eHealth = enemy.components.get("Health") as {
-            current: number;
-            max: number;
-          };
-          eHealth.current -= damage;
-          hitCount++;
-          this.addFloatingText(tx, ty, `-${damage}`, "#ff2200");
+        if (enemy) {
+          const eDesc = (enemy.components.get("Description") as any)?.name || "";
+          if (enemy.id.startsWith("explosive_barrel") || eDesc.includes("Barrel")) {
+            this.detonateExplosiveBarrel(enemy, tx, ty);
+            continue;
+          }
 
-          if (eHealth.current <= 0) {
-            this.world.queueDestroy(enemy.id);
-            this.world.flush();
-            this.handleMonsterDefeat(enemy, tx, ty, player);
+          if (
+            enemy.components.has("Health") &&
+            ((enemy.components.has("Faction") &&
+              (enemy.components.get("Faction") as any).id !== "player") ||
+              enemy.components.has("CombatStats"))
+          ) {
+            enemy.tags.add("alerted");
+            this.applyStatus(enemy.id, "burning", 2);
+            const eHealth = enemy.components.get("Health") as {
+              current: number;
+              max: number;
+            };
+            eHealth.current -= damage;
+            hitCount++;
+            this.addFloatingText(tx, ty, `-${damage} BURN`, "#ff2200");
+
+            if (eHealth.current <= 0) {
+              this.world.queueDestroy(enemy.id);
+              this.world.flush();
+              this.handleMonsterDefeat(enemy, tx, ty, player);
+            }
           }
         }
       }
@@ -1868,25 +2688,32 @@ export class Game {
       }
 
       const enemy = this.getEntityAt(tx, ty, player.id);
-      if (
-        enemy &&
-        enemy.components.has("Health") &&
-        ((enemy.components.has("Faction") &&
-          (enemy.components.get("Faction") as any).id !== "player") ||
-          enemy.components.has("CombatStats"))
-      ) {
-        enemy.tags.add("alerted");
-        const eHealth = enemy.components.get("Health") as {
-          current: number;
-          max: number;
-        };
-        eHealth.current -= damage;
-        this.addFloatingText(tx, ty, `SHOCK! -${damage}`, "#00ffff");
+      if (enemy) {
+        const eDesc = (enemy.components.get("Description") as any)?.name || "";
+        if (enemy.id.startsWith("explosive_barrel") || eDesc.includes("Barrel")) {
+          this.detonateExplosiveBarrel(enemy, tx, ty);
+          continue;
+        }
 
-        if (eHealth.current <= 0) {
-          this.world.queueDestroy(enemy.id);
-          this.world.flush();
-          this.handleMonsterDefeat(enemy, tx, ty, player);
+        if (
+          enemy.components.has("Health") &&
+          ((enemy.components.has("Faction") &&
+            (enemy.components.get("Faction") as any).id !== "player") ||
+            enemy.components.has("CombatStats"))
+        ) {
+          enemy.tags.add("alerted");
+          const eHealth = enemy.components.get("Health") as {
+            current: number;
+            max: number;
+          };
+          eHealth.current -= damage;
+          this.addFloatingText(tx, ty, `SHOCK! -${damage}`, "#00ffff");
+
+          if (eHealth.current <= 0) {
+            this.world.queueDestroy(enemy.id);
+            this.world.flush();
+            this.handleMonsterDefeat(enemy, tx, ty, player);
+          }
         }
       }
     }
@@ -1930,26 +2757,34 @@ export class Game {
         const tx = pos.x + dx;
         const ty = pos.y + dy;
         const enemy = this.getEntityAt(tx, ty, player.id);
-        if (
-          enemy &&
-          enemy.components.has("Health") &&
-          ((enemy.components.has("Faction") &&
-            (enemy.components.get("Faction") as any).id !== "player") ||
-            enemy.components.has("CombatStats"))
-        ) {
-          enemy.tags.add("stunned");
-          enemy.tags.add("alerted");
-          const eHealth = enemy.components.get("Health") as {
-            current: number;
-            max: number;
-          };
-          eHealth.current -= damage;
-          this.addFloatingText(tx, ty, `FROZEN -${damage}`, "#88ddff");
+        if (enemy) {
+          const eDesc = (enemy.components.get("Description") as any)?.name || "";
+          if (enemy.id.startsWith("explosive_barrel") || eDesc.includes("Barrel")) {
+            this.detonateExplosiveBarrel(enemy, tx, ty);
+            continue;
+          }
 
-          if (eHealth.current <= 0) {
-            this.world.queueDestroy(enemy.id);
-            this.world.flush();
-            this.handleMonsterDefeat(enemy, tx, ty, player);
+          if (
+            enemy.components.has("Health") &&
+            ((enemy.components.has("Faction") &&
+              (enemy.components.get("Faction") as any).id !== "player") ||
+              enemy.components.has("CombatStats"))
+          ) {
+            enemy.tags.add("stunned");
+            enemy.tags.add("alerted");
+            this.applyStatus(enemy.id, "rooted", 2);
+            const eHealth = enemy.components.get("Health") as {
+              current: number;
+              max: number;
+            };
+            eHealth.current -= damage;
+            this.addFloatingText(tx, ty, `FROZEN -${damage}`, "#88ddff");
+
+            if (eHealth.current <= 0) {
+              this.world.queueDestroy(enemy.id);
+              this.world.flush();
+              this.handleMonsterDefeat(enemy, tx, ty, player);
+            }
           }
         }
       }
@@ -1985,6 +2820,15 @@ export class Game {
     }
 
     this.inventory.useConsumable(player, pot);
+    // Purge all status ailments
+    if (this.entityStatuses.has(player.id)) {
+      this.entityStatuses.delete(player.id);
+      const pos = player.components.get("Position") as { x: number; y: number } | undefined;
+      if (pos) {
+        this.addFloatingText(pos.x, pos.y, "CURED!", "#00ffaa");
+      }
+      this.logCallback("The health elixir purged all status ailments and poisons!");
+    }
     sound.playItem();
     this.finishTurn(player);
     return true;
@@ -2048,10 +2892,7 @@ export class Game {
       return false;
     }
 
-    this.inventory.useConsumable(player, scroll);
-    sound.playAbility();
-    this.finishTurn(player);
-    return true;
+    return this.executeTeleport(player, scroll);
   }
 
   /** Add experience and handle level-up progression */
@@ -2306,8 +3147,24 @@ export class Game {
       item.components.has("Consumable") ||
       item.components.has("HealthPack")
     ) {
-      this.inventory.useConsumable(player, item);
-      sound.playItem();
+      const cons = item.components.get("Consumable") as { effect: string; value: number } | undefined;
+      const desc = (item.components.get("Description") as any)?.name || "";
+      if (cons?.effect === "teleport" || desc.includes("Teleport") || desc.includes("Blink")) {
+        this.executeTeleport(player, item);
+      } else if (cons?.effect === "speed" || desc.includes("Swiftness") || desc.includes("Speed")) {
+        this.inventory.removeFromBackpack(player, item.id);
+        this.world.queueDestroy(item.id);
+        this.world.flush();
+        this.speedBuffTurns = 15;
+        sound.playAbility();
+        const pos = player.components.get("Position") as { x: number; y: number };
+        this.addFloatingText(pos.x, pos.y, "SPEED +50% (15T)", "#00ffaa");
+        this.logCallback("You drank Swiftness Potion! Moving at 150% speed for 15 turns!");
+        this.finishTurn(player);
+      } else {
+        // Health potion / elixir
+        this.drinkHealthPotion();
+      }
     }
     this.statsCallback(player);
     this.render();
