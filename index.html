@@ -3,73 +3,197 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cartridge Forge</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0a0a0f;
-      color: #c0c0c0;
-      font-family: 'Courier New', monospace;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
-    #game-viewport {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    #game-canvas {
-      image-rendering: pixelated;
-      border: 2px solid #333;
-    }
-    #sidebar {
-      width: 320px;
-      background: #111118;
-      border-left: 2px solid #333;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #sidebar h2 {
-      padding: 12px;
-      font-size: 14px;
-      border-bottom: 1px solid #333;
-      color: #8888ff;
-    }
-    #combat-log {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 12px;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-    #combat-log .log-entry { margin-bottom: 4px; }
-    #stats-panel {
-      padding: 12px;
-      border-top: 1px solid #333;
-      font-size: 12px;
-    }
-    #cartridge-loader {
-      position: absolute; top: 12px; left: 12px;
-      z-index: 10;
-    }
-  </style>
+  <title>Cartridge Forge :: Virtual Arcade Console</title>
+  <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <div id="game-viewport">
-    <div id="cartridge-loader">
-      <input type="file" id="cartridge-input" accept=".json" />
+  <!-- Header Bar -->
+  <header id="app-header">
+    <div class="brand-section">
+      <div class="power-led" title="Virtual Console Engine Active"></div>
+      <div class="brand-title">CARTRIDGE <span>FORGE</span></div>
+      <div class="system-badge">VIRTUAL CONSOLE</div>
     </div>
-    <canvas id="game-canvas" width="800" height="600"></canvas>
-  </div>
-  <div id="sidebar">
-    <h2>COMBAT LOG</h2>
-    <div id="combat-log"></div>
-    <div id="stats-panel"></div>
-  </div>
+
+    <div class="header-controls">
+      <span class="selector-label">Cartridge:</span>
+      <select id="cartridge-select" class="cyber-select" aria-label="Select Game Cartridge">
+        <option value="/cartridges/abyssal_protocol.json">Abyssal Protocol (Sci-Fi Mech)</option>
+        <option value="/cartridges/gladiator_gen.json">Gladiator Gen (Breeding & Arena)</option>
+        <option value="/cartridges/rpg_test.json">Forge RPG Benchmark (Equipment & Combat)</option>
+        <option value="/cartridges/crawler_demo.json">Dungeon Crawler (Pseudo-3D)</option>
+        <option value="/cartridges/wireframe_demo.json">Wireframe Cube (Vector 3D)</option>
+      </select>
+
+      <div class="file-upload-wrapper">
+        <button class="cyber-btn" title="Load custom cartridge JSON">📁 Load JSON</button>
+        <input type="file" id="cartridge-input" accept=".json" aria-label="Upload Cartridge JSON" />
+      </div>
+
+      <button id="btn-sfx" class="cyber-btn active" title="Toggle 8-bit Sound Effects">🔊 SFX ON</button>
+      <button id="btn-crt" class="cyber-btn" title="Toggle Retro CRT Scanlines & Phosphor Glow">📺 CRT OFF</button>
+      <button id="btn-restart" class="cyber-btn" title="Restart Current Game Session">↺ RESTART</button>
+    </div>
+  </header>
+
+  <!-- Main 3-Column Workspace -->
+  <main id="workspace">
+    <!-- Left HUD: Pilot & Controls -->
+    <aside id="left-hud">
+      <!-- Player Status Panel -->
+      <section class="hud-panel">
+        <div class="panel-title">
+          <span>OPERATOR STATUS</span>
+          <span id="player-status-badge" class="system-badge" style="color: var(--green-glow); border-color: var(--green-glow);">NOMINAL</span>
+        </div>
+
+        <div class="player-identity">
+          <div id="player-glyph" class="player-avatar">@</div>
+          <div class="player-names">
+            <div id="player-name" class="player-title">Salvage Mech</div>
+            <div id="player-faction" class="player-faction">Faction: Player</div>
+          </div>
+        </div>
+
+        <div class="meter-group">
+          <div class="meter-header">
+            <span>HULL INTEGRITY (HP)</span>
+            <span id="hp-text" class="meter-val">100 / 100</span>
+          </div>
+          <div class="meter-bar">
+            <div id="hp-bar" class="meter-fill hp" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="meter-group">
+          <div class="meter-header">
+            <span>SHIELD / ARMOR</span>
+            <span id="armor-text" class="meter-val">5 PTS</span>
+          </div>
+          <div class="meter-bar">
+            <div id="armor-bar" class="meter-fill armor" style="width: 70%;"></div>
+          </div>
+        </div>
+
+        <div class="stats-matrix">
+          <div class="stat-cell">
+            <div class="stat-label">STRENGTH</div>
+            <div id="stat-str" class="stat-value">12</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">COORDINATES</div>
+            <div id="stat-pos" class="stat-value">12, 14</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tactile Virtual Controller -->
+      <section class="hud-panel">
+        <div class="panel-title">CONTROLLER (D-PAD)</div>
+        <div class="dpad-container">
+          <button class="dpad-btn dpad-up" data-key="ArrowUp" title="Move Up (W / ↑)">
+            ▲ <span class="sub-key">W / ↑</span>
+          </button>
+          <button class="dpad-btn dpad-left" data-key="ArrowLeft" title="Move Left (A / ←)">
+            ◀ <span class="sub-key">A / ←</span>
+          </button>
+          <button class="dpad-btn dpad-wait" data-key=" " title="Wait 1 Turn (Space / .)">
+            WAIT <span class="sub-key">SPACE</span>
+          </button>
+          <button class="dpad-btn dpad-right" data-key="ArrowRight" title="Move Right (D / →)">
+            ▶ <span class="sub-key">D / →</span>
+          </button>
+          <button class="dpad-btn dpad-down" data-key="ArrowDown" title="Move Down (S / ↓)">
+            ▼ <span class="sub-key">S / ↓</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Controls Keymap Reference -->
+      <section class="hud-panel">
+        <div class="panel-title">KEYMAP & CONTROLS</div>
+        <div class="keymap-list">
+          <div class="keymap-item">
+            <span>Move & Attack:</span>
+            <span class="kbd-badge">WASD / Arrows</span>
+          </div>
+          <div class="keymap-item">
+            <span>Wait / Pass Turn:</span>
+            <span class="kbd-badge">Space / .</span>
+          </div>
+          <div class="keymap-item">
+            <span>Click Adjacent:</span>
+            <span class="kbd-badge">Move / Strike</span>
+          </div>
+          <div class="keymap-item">
+            <span>Click Distant:</span>
+            <span class="kbd-badge">Inspect Entity</span>
+          </div>
+          <div class="keymap-item">
+            <span>Turn (3D modes):</span>
+            <span class="kbd-badge">Q / E</span>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Center Viewport: Arcade Screen -->
+    <section id="center-viewport">
+      <div class="viewport-toolbar">
+        <div class="viewport-info">
+          <div class="info-stat">GAME: <strong id="game-title">Abyssal Protocol</strong></div>
+          <div class="info-stat">DIMENSIONS: <strong id="map-dims">60 × 40</strong></div>
+          <div class="info-stat">TURN: <strong id="turn-counter">1</strong></div>
+        </div>
+        <div id="tile-coords" class="info-stat">CURSOR: <strong>--</strong></div>
+      </div>
+
+      <div class="canvas-wrapper">
+        <div class="crt-overlay"></div>
+        <canvas id="game-canvas" width="840" height="640"></canvas>
+      </div>
+    </section>
+
+    <!-- Right HUD: Tactical Intel & Log -->
+    <aside id="right-hud">
+      <!-- Entity Inspector Panel -->
+      <section class="hud-panel">
+        <div class="panel-title">
+          <span>TACTICAL INSPECTOR</span>
+          <span class="system-badge">TARGET</span>
+        </div>
+        <div id="inspector-content" class="inspector-card">
+          <div id="inspector-glyph" class="inspector-glyph">@</div>
+          <div class="inspector-details">
+            <div id="inspector-name" class="inspector-name">Salvage Mech</div>
+            <div id="inspector-type" class="inspector-type">Player Unit</div>
+            <div id="inspector-stats" class="inspector-stats">Hover or click any tile on the map to inspect its occupant and telemetry.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Field Key / Map Legend -->
+      <section class="hud-panel">
+        <div class="panel-title">
+          <span>FIELD KEY (MAP LEGEND)</span>
+          <span class="system-badge">SYMBOLS</span>
+        </div>
+        <div id="field-legend" class="legend-grid">
+          <!-- Populated dynamically based on cartridge -->
+        </div>
+      </section>
+
+      <!-- Tactical Combat Log -->
+      <section class="hud-panel combat-log-container">
+        <div class="panel-title">
+          <span>COMBAT & EVENT LOG</span>
+          <button id="btn-clear-log" class="cyber-btn" style="font-size: 10px; padding: 2px 6px;">CLEAR</button>
+        </div>
+        <div id="combat-log"></div>
+      </section>
+    </aside>
+  </main>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@ import { generateMap, type GameMap, TileType } from './mapgen.js';
 import { PersistenceService, type SaveData } from './persistence.js';
 import { GeneticsService } from './genetics.js';
 import { InventoryService } from './inventory.js';
+import { sound } from './audio.js';
 import type { Cartridge } from '../cartridge/schema.js';
 import type { Entity, EntityId } from '../ecs/types.js';
 
@@ -21,18 +22,28 @@ type InputAction = { dx?: number; dy?: number; rotate?: number };
 
 /** Turn direction mappings */
 const DIRECTIONS: Record<string, InputAction> = {
+  // Arrow keys
   ArrowUp:    { dx: 0,  dy: -1 },
   ArrowDown:  { dx: 0,  dy: 1 },
   ArrowLeft:  { dx: -1, dy: 0 },
   ArrowRight: { dx: 1,  dy: 0 },
+  // Standard WASD
+  w: { dx: 0,  dy: -1 }, W: { dx: 0,  dy: -1 },
+  s: { dx: 0,  dy: 1 },  S: { dx: 0,  dy: 1 },
+  a: { dx: -1, dy: 0 },  A: { dx: -1, dy: 0 },
+  d: { dx: 1,  dy: 0 },  D: { dx: 1,  dy: 0 },
+  // Rotation keys for 3D modes
+  q: { rotate: -1 },     Q: { rotate: -1 },
+  e: { rotate: 1 },      E: { rotate: 1 },
+  // Wait / rest turn
+  ' ': { dx: 0, dy: 0 },
+  '.': { dx: 0, dy: 0 },
+  '5': { dx: 0, dy: 0 },
   // Numpad / vi keys for diagonal support
   y: { dx: -1, dy: -1 }, u: { dx: 1, dy: -1 },
   b: { dx: -1, dy: 1 },  n: { dx: 1, dy: 1 },
   h: { dx: -1, dy: 0 },  l: { dx: 1, dy: 0 },
   k: { dx: 0,  dy: -1 }, j: { dx: 0, dy: 1 },
-  // Rotation for pseudo-3D
-  a: { rotate: -1 }, d: { rotate: 1 },
-  w: { dx: 0,  dy: -1 }, s: { dx: 0, dy: 1 }, // w/s as forward/back
 };
 
 export class Game {
@@ -75,9 +86,9 @@ export class Game {
     // Initial renderer (GRID_2D)
     this.renderer = RendererFactory.create('GRID_2D', {
       canvas,
-      cellSize: 16,
+      cellSize: 28,
       palette: {},
-      fontFamily: 'monospace',
+      fontFamily: "'JetBrains Mono', monospace",
     });
   }
 
@@ -90,9 +101,9 @@ export class Game {
     // Update renderer from cartridge config
     this.renderer = RendererFactory.create(cartridge.meta.renderer_mode, {
       canvas: document.getElementById('game-canvas') as HTMLCanvasElement,
-      cellSize: 16,
+      cellSize: 28,
       palette: cartridge.meta.palette ?? {},
-      fontFamily: 'monospace',
+      fontFamily: "'JetBrains Mono', monospace",
     });
 
     // Register component definitions
@@ -156,39 +167,55 @@ export class Game {
     }
 
     this.phase = 'PLAYER_TURN';
-    this.logCallback(`--- ${cartridge.meta.title} ---`);
-    this.logCallback(cartridge.meta.description ?? 'A new game begins.');
-    this.logCallback('Use arrow keys or hjkl to move. Bump to attack.');
+    this.logCallback(`=== ${cartridge.meta.title.toUpperCase()} ===`);
+    this.logCallback(cartridge.meta.description ?? 'A new session begins.');
+    this.logCallback('Move: [WASD] or [Arrows] | Wait: [Space] | Click to Move/Attack');
     this.render();
+    this.statsCallback(this.world.getEntity(this.playerId!));
   }
 
+  /** Handle keyboard input */
   handleInput(key: string): void {
     if (this.phase !== 'PLAYER_TURN') return;
-
-    const action = DIRECTIONS[key];
-    if (!action) return;
 
     const player = this.playerId ? this.world.getEntity(this.playerId) : undefined;
     if (!player) return;
 
+    const is3D = this.cartridge?.meta.renderer_mode === 'CELL_PSEUDO_3D' || this.cartridge?.meta.renderer_mode === 'WIREFRAME_3D';
     const pos = player.components.get('Position') as { x: number; y: number; direction?: string };
 
-    // Handle rotation
+    // Wait / rest turn
+    if (key === ' ' || key === '.' || key === '5') {
+      this.logCallback('You wait a turn...');
+      sound.playMove();
+      this.finishTurn(player);
+      return;
+    }
+
+    let action = DIRECTIONS[key];
+    // In 3D mode, 'a' and 'd' rotate instead of lateral move
+    if (is3D && (key === 'a' || key === 'A')) action = { rotate: -1 };
+    if (is3D && (key === 'd' || key === 'D')) action = { rotate: 1 };
+
+    if (!action) return;
+
+    // Handle rotation in 3D modes
     if (action.rotate !== undefined) {
       const dirs = ['N', 'E', 'S', 'W'];
       const currentIdx = dirs.indexOf(pos.direction || 'N');
       const newIdx = (currentIdx + action.rotate + 4) % 4;
       pos.direction = dirs[newIdx];
+      sound.playMove();
       this.finishTurn(player);
       return;
     }
 
-    // Handle movement (Perspective aware if direction exists)
+    // Handle perspective-aware movement in 3D mode
     let dx = action.dx || 0;
     let dy = action.dy || 0;
 
-    if (pos.direction && (key === 'ArrowUp' || key === 'ArrowDown' || key === 'w' || key === 's')) {
-      const isForward = key === 'ArrowUp' || key === 'w';
+    if (is3D && pos.direction && (key === 'ArrowUp' || key === 'ArrowDown' || key === 'w' || key === 's' || key === 'W' || key === 'S')) {
+      const isForward = key === 'ArrowUp' || key === 'w' || key === 'W';
       const moveScale = isForward ? 1 : -1;
       const perspectiveMap: Record<string, { dx: number; dy: number }> = {
         'N': { dx: 0, dy: -1 },
@@ -201,6 +228,22 @@ export class Game {
       dy = pDir.dy * moveScale;
     }
 
+    this.executeAction({ dx, dy }, player);
+  }
+
+  /** Execute a directional action (move, attack, wait) */
+  executeAction(action: { dx: number; dy: number }, player: Entity): void {
+    const pos = player.components.get('Position') as { x: number; y: number; direction?: string };
+    const dx = action.dx;
+    const dy = action.dy;
+
+    if (dx === 0 && dy === 0) {
+      this.logCallback('You wait a turn...');
+      sound.playMove();
+      this.finishTurn(player);
+      return;
+    }
+
     const targetX = pos.x + dx;
     const targetY = pos.y + dy;
 
@@ -211,12 +254,30 @@ export class Game {
     const targetEntity = this.getEntityAt(targetX, targetY, player.id);
 
     if (targetEntity) {
+      const targetHealthBefore = (targetEntity.components.get('Health') as { current: number } | undefined)?.current;
+
       // Bump attack — emit ACTION_ATTACK event
       this.executor.emit({
         name: 'ACTION_ATTACK',
         source: player,
         target: targetEntity,
       });
+      this.world.flush();
+
+      sound.playAttack();
+      const targetHealthAfter = (targetEntity.components.get('Health') as { current: number } | undefined)?.current;
+      const stillAlive = this.world.getEntity(targetEntity.id);
+
+      if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+        if (!stillAlive) {
+          (this.renderer as any).addFloatingText(targetX, targetY, 'SLAIN!', '#ff0055');
+          sound.playDefeat();
+        } else if (targetHealthBefore !== undefined && targetHealthAfter !== undefined && targetHealthBefore > targetHealthAfter) {
+          const dmg = targetHealthBefore - targetHealthAfter;
+          (this.renderer as any).addFloatingText(targetX, targetY, `-${dmg}`, '#ff3344');
+          sound.playHit();
+        }
+      }
     } else {
       // Move — emit ACTION_MOVE event
       pos.x = targetX;
@@ -225,11 +286,32 @@ export class Game {
         name: 'ACTION_MOVE',
         source: player,
       });
+      this.world.flush();
+      sound.playMove();
     }
 
-    // Flush spawns/destructions from player action
-    this.world.flush();
     this.finishTurn(player);
+  }
+
+  /** Handle mouse click on a map tile (click-to-move or click-to-attack) */
+  handleTileClick(targetX: number, targetY: number): void {
+    if (this.phase !== 'PLAYER_TURN') return;
+    const player = this.playerId ? this.world.getEntity(this.playerId) : undefined;
+    if (!player) return;
+
+    const pos = player.components.get('Position') as { x: number; y: number } | undefined;
+    if (!pos) return;
+
+    const dx = targetX - pos.x;
+    const dy = targetY - pos.y;
+
+    // If clicked adjacent tile, move or attack
+    if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0)) {
+      this.executeAction({ dx, dy }, player);
+    } else if (dx === 0 && dy === 0) {
+      // Clicked on self = wait
+      this.executeAction({ dx: 0, dy: 0 }, player);
+    }
   }
 
   /** Complete turn cycle: enemy actions, status effects, and render */
@@ -237,18 +319,31 @@ export class Game {
     // Check if player died
     if (!this.world.getEntity(this.playerId!)) {
       this.phase = 'GAME_OVER';
+      sound.playGameOver();
       this.logCallback('=== GAME OVER ===');
       this.render();
       return;
     }
 
     // Enemy turn
+    const playerHealthBefore = (player.components.get('Health') as { current: number } | undefined)?.current;
     this.processEnemyTurns(player);
     this.world.flush();
+
+    const playerHealthAfter = (player.components.get('Health') as { current: number } | undefined)?.current;
+    if (playerHealthBefore !== undefined && playerHealthAfter !== undefined && playerHealthBefore > playerHealthAfter) {
+      const dmg = playerHealthBefore - playerHealthAfter;
+      const pPos = player.components.get('Position') as { x: number; y: number } | undefined;
+      if (pPos && this.renderer && 'addFloatingText' in (this.renderer as any)) {
+        (this.renderer as any).addFloatingText(pPos.x, pPos.y, `-${dmg}`, '#ff0033');
+      }
+      sound.playHit();
+    }
 
     // Check player again after enemy actions
     if (!this.world.getEntity(this.playerId!)) {
       this.phase = 'GAME_OVER';
+      sound.playGameOver();
       this.logCallback('=== GAME OVER ===');
       this.render();
       return;
@@ -290,7 +385,6 @@ export class Game {
         ? [{ dx, dy: 0 }, { dx: 0, dy }]
         : [{ dx: 0, dy }, { dx, dy: 0 }];
 
-      let moved = false;
       for (const m of moves) {
         if (m.dx === 0 && m.dy === 0) continue;
         const nx = ePos.x + m.dx;
@@ -306,7 +400,6 @@ export class Game {
             source: enemy,
             target: player,
           });
-          moved = true;
           break;
         }
 
@@ -316,14 +409,13 @@ export class Game {
         // Move
         ePos.x = nx;
         ePos.y = ny;
-        moved = true;
         break;
       }
     }
   }
 
   /** Find an entity at a grid position (optionally excluding one) */
-  private getEntityAt(x: number, y: number, excludeId?: EntityId): Entity | undefined {
+  getEntityAt(x: number, y: number, excludeId?: EntityId): Entity | undefined {
     return this.world.allEntities().find(e => {
       if (excludeId && e.id === excludeId) return false;
       const pos = e.components.get('Position') as { x: number; y: number } | undefined;
@@ -332,13 +424,41 @@ export class Game {
   }
 
   /** Render the current game state */
-  private render(): void {
+  render(): void {
     const player = this.playerId ? this.world.getEntity(this.playerId) : undefined;
     if (player) {
       const pos = player.components.get('Position') as { x: number; y: number };
       this.renderer.centerOn(pos.x, pos.y);
     }
     this.renderer.render(this.map, this.world.allEntities());
+  }
+
+  // --- Public Getters & Control Methods for UI ---
+
+  getCartridge(): Cartridge | undefined { return this.cartridge; }
+  getMap(): GameMap | undefined { return this.map; }
+  getPlayer(): Entity | undefined { return this.playerId ? this.world.getEntity(this.playerId) : undefined; }
+  getEntities(): Entity[] { return this.world.allEntities(); }
+  getTurnCount(): number { return this.turnCount; }
+  getPhase(): GamePhase { return this.phase; }
+  getRenderer(): IRenderer { return this.renderer; }
+
+  setHoveredTile(x: number | null, y: number | null): void {
+    if (this.renderer && 'setHoveredTile' in (this.renderer as any)) {
+      (this.renderer as any).setHoveredTile(x !== null && y !== null ? { x, y } : null);
+    }
+  }
+
+  addFloatingText(x: number, y: number, text: string, color?: string): void {
+    if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+      (this.renderer as any).addFloatingText(x, y, text, color);
+    }
+  }
+
+  restart(): void {
+    if (this.cartridge) {
+      this.loadCartridge(this.cartridge);
+    }
   }
 
   /** Export current game state as JSON */
@@ -355,7 +475,6 @@ export class Game {
     this.turnCount = result.turnCount;
     this.playerId = result.playerId;
     
-    // Restore map tiles if present
     if (result.mapTiles) {
       this.map.tiles = result.mapTiles;
     }

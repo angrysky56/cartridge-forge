@@ -1,0 +1,162 @@
+{
+  "components": {
+    "GeneticTraits": {
+      "aggression": "number",
+      "longevity": "number"
+    },
+    "ArenaCompetitor": {
+      "wins": "number"
+    },
+    "Position": {
+      "x": "number",
+      "y": "number"
+    },
+    "Glyph": {
+      "char": "string",
+      "color": "string"
+    },
+    "Health": {
+      "current": "number",
+      "max": "number"
+    },
+    "CombatStats": {
+      "strength": "number",
+      "armor": "number"
+    }
+  },
+  "systems": {
+    "BreedingArena": {
+      "listens_for": "ACTION_BREED",
+      "context": {
+        "p1": "source",
+        "p2": "target"
+      },
+      "effects": [
+        {
+          "type": "BREED_ENTITY",
+          "parentA": "p1",
+          "parentB": "p2",
+          "blueprint": "mutant_base",
+          "at": "p1.Position"
+        },
+        {
+          "type": "LOG_MESSAGE",
+          "message": "A new hybrid has been born!"
+        }
+      ]
+    },
+    "Movement": {
+      "listens_for": "ACTION_MOVE",
+      "context": {
+        "actor": "source"
+      },
+      "effects": [
+        {
+          "type": "MUTATE",
+          "target": "actor.Position.x",
+          "operation": "ADD",
+          "value": "event.dx"
+        },
+        {
+          "type": "MUTATE",
+          "target": "actor.Position.y",
+          "operation": "ADD",
+          "value": "event.dy"
+        }
+      ]
+    },
+    "BasicCombat": {
+      "listens_for": "ACTION_ATTACK",
+      "context": {
+        "attacker": "source",
+        "target": "target"
+      },
+      "effects": [
+        {
+          "type": "MUTATE",
+          "target": "target.Health.current",
+          "operation": "SUBTRACT",
+          "value": "max(1, attacker.CombatStats.strength - target.CombatStats.armor)"
+        }
+      ],
+      "post_checks": [
+        {
+          "if": "target.Health.current <= 0",
+          "then": [
+            {
+              "type": "DESTROY_ENTITY",
+              "target": "target"
+            },
+            {
+              "type": "LOG_MESSAGE",
+              "message": "The enemy was defeated!"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "events": [
+    "ACTION_BREED"
+  ],
+  "meta": {
+    "title": "Gladiator Gen",
+    "description": "Breed mutants. Fight for glory. A tribute to Mail Order Monsters.",
+    "renderer_mode": "GRID_2D",
+    "palette": {
+      "blood": "#880000",
+      "slime": "#00ff00",
+      "steel": "#c0c0c0",
+      "void": "#000000"
+    }
+  },
+  "traits": {
+    "Strength": {
+      "aggression": 1.2,
+      "longevity": 0.8
+    },
+    "Agility": {
+      "aggression": 0.9,
+      "longevity": 1.1
+    }
+  },
+  "blueprints": {
+    "mutant_base": {
+      "Glyph": {
+        "char": "M",
+        "color": "#00ff00"
+      },
+      "Health": {
+        "current": 50,
+        "max": 50
+      },
+      "CombatStats": {
+        "strength": 5,
+        "armor": 2
+      },
+      "GeneticTraits": {
+        "aggression": 0.5,
+        "longevity": 0.5
+      },
+      "ArenaCompetitor": {
+        "wins": 0
+      }
+    }
+  },
+  "world_gen": {
+    "width": 64,
+    "height": 64,
+    "algorithm": "bsp_rooms",
+    "params": {
+      "min_room_size": 6,
+      "max_rooms": 10
+    },
+    "spawn_table": [
+      {
+        "blueprint": "mutant_base",
+        "weight": 0.5,
+        "max_per_level": 4
+      }
+    ]
+  }
+}

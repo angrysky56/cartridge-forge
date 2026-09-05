@@ -1,0 +1,122 @@
+{
+  "meta": {
+    "title": "Forge RPG Benchmark",
+    "description": "Testing breeding, equipment, and complex math.",
+    "renderer_mode": "GRID_2D",
+    "palette": {
+      "player": "#00ff00",
+      "orc": "#ff0000",
+      "item": "#ffff00",
+      "child": "#00ffff"
+    }
+  },
+  "world_gen": {
+    "width": 40,
+    "height": 40,
+    "algorithm": "cellular_automata",
+    "spawn_table": [
+      { "blueprint": "orc", "weight": 0.1, "max_per_level": 5 }
+    ]
+  },
+  "traits": {
+    "Strength": {
+      "CombatStats.strength": 2
+    },
+    "Toughness": {
+      "CombatStats.toughness": 1
+    }
+  },
+  "components": {
+    "CombatStats": {
+      "strength": "number",
+      "toughness": "number"
+    },
+    "Health": {
+      "current": "number",
+      "max": "number"
+    },
+    "Faction": {
+      "id": "string"
+    },
+    "Glyph": {
+      "char": "string",
+      "color": "string"
+    },
+    "Equippable": {
+      "slot": "string",
+      "modifiers": "object"
+    },
+    "Equipment": {
+      "slots": "object"
+    }
+  },
+  "blueprints": {
+    "player": {
+      "Glyph": { "char": "@", "color": "player" },
+      "Faction": { "id": "player" },
+      "CombatStats": { "strength": 15, "toughness": 10 },
+      "Health": { "current": 200, "max": 200 },
+      "Equipment": { "slots": {} }
+    },
+    "orc": {
+      "Glyph": { "char": "O", "color": "orc" },
+      "Faction": { "id": "monster" },
+      "CombatStats": { "strength": 12, "toughness": 6 },
+      "Health": { "current": 50, "max": 50 }
+    },
+    "offspring": {
+      "Glyph": { "char": "c", "color": "child" },
+      "Faction": { "id": "monster" },
+      "Health": { "current": 30, "max": 30 }
+    },
+    "sword": {
+      "Glyph": { "char": "/", "color": "item" },
+      "Equippable": {
+        "slot": "main_hand",
+        "modifiers": { "CombatStats.strength": 5 }
+      }
+    }
+  },
+  "systems": {
+    "Combat": {
+      "listens_for": "ACTION_ATTACK",
+      "context": { "attacker": "source", "defender": "target" },
+      "requires": ["has_component(attacker, 'CombatStats')", "has_component(defender, 'Health')"],
+      "effects": [
+        {
+          "type": "MUTATE",
+          "target": "defender.Health.current",
+          "operation": "SUBTRACT",
+          "value": "max(1, attacker.CombatStats.strength * 1.5 - defender.CombatStats.toughness)"
+        },
+        {
+          "type": "LOG_MESSAGE",
+          "message": "The {attacker.Glyph.char} hits {defender.Glyph.char} for heavy damage!"
+        }
+      ],
+      "post_checks": [
+        {
+          "if": "defender.Health.current <= 0",
+          "then": [
+            { "type": "DESTROY_ENTITY", "target": "defender" },
+            { "type": "LOG_MESSAGE", "message": "{defender.Glyph.char} was slain!" }
+          ]
+        }
+      ]
+    },
+    "BreedingSystem": {
+      "listens_for": "ACTION_MOVE",
+      "context": { "parentA": "source" },
+      "requires": ["parentA.Faction.id == 'player'"],
+      "effects": [
+        {
+          "type": "BREED_ENTITY",
+          "parentA": "parentA",
+          "parentB": "parentA",
+          "blueprint": "offspring",
+          "at": "parentA.Position"
+        }
+      ]
+    }
+  }
+}
