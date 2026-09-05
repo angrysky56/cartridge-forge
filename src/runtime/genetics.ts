@@ -50,11 +50,9 @@ export class GeneticsService {
         }
         childBlueprint[compName] = averaged;
       } else {
-        // Inherit from the parent that has it (50/50 chance)
-        if (Math.random() > 0.5) {
-          if (valA) childBlueprint[compName] = { ...valA };
-          else if (valB) childBlueprint[compName] = { ...valB };
-        }
+        // Inherit from the parent that has it
+        if (valA) childBlueprint[compName] = { ...valA };
+        else if (valB) childBlueprint[compName] = { ...valB };
       }
     }
 

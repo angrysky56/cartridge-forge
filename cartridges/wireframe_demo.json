@@ -40,10 +40,10 @@
       "Renderable": { "color": "#ffffff", "glyph": "@" }
     }
   },
-  "systems": [],
-  "map": {
+  "systems": {},
+  "world_gen": {
     "width": 20,
     "height": 20,
-    "generator": "empty"
+    "algorithm": "prefab"
   }
 }

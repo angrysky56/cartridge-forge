@@ -73,10 +73,19 @@ npm run build
 npm run dev
 ```
 
+### Testing
+```bash
+# Run unit test suite
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
 ### Validation
 ```bash
 # Validate a cartridge file
-npx tsx src/cartridge/cli-validate.ts my_game.json
+npm run validate my_game.json
 ```
 
 ### Forging
@@ -84,3 +93,9 @@ npx tsx src/cartridge/cli-validate.ts my_game.json
 # Merge cartridge fragments
 npx tsx src/cartridge/cli-forge.ts -o game.json part1.json part2.json
 ```
+
+## Documentation & Roadmap
+
+- **[DSL Reference](docs/DSL_REFERENCE.md)**: Cartridge schema, component types, and expression language.
+- **[Forge Pipeline](docs/FORGE_PIPELINE.md)**: Multi-agent orchestration, specialized skills, and authoring workflow.
+- **[Development Roadmap](ROADMAP.md)**: Milestones, completed phases, and upcoming features.

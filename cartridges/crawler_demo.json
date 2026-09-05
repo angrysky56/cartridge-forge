@@ -22,10 +22,10 @@
       "Renderable": { "color": "#00ff88", "glyph": "@", "layer": 10 }
     }
   },
-  "systems": [],
-  "map": {
+  "systems": {},
+  "world_gen": {
     "width": 10,
     "height": 10,
-    "generator": "dungeon"
+    "algorithm": "bsp_rooms"
   }
 }

@@ -36,7 +36,7 @@ An AI generating a cartridge MUST conform to this schema exactly.
 Components are pure data bags. Each key is a component name, value is a map
 of field names to type descriptors.
 
-**Allowed types:** `"number"`, `"string"`, `"boolean"`, `"array<EntityID>"`
+**Allowed types:** `"number"`, `"string"`, `"boolean"`, `"object"`, `"array<...>"`, `"record<...>"`
 
 ```json
 "components": {

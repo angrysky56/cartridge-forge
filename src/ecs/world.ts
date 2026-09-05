@@ -4,7 +4,7 @@
  * No game logic lives here — that's all in the DSL systems.
  */
 
-import type { EntityId, ComponentName, ComponentData, Entity } from './types.js';
+import type { EntityId, ComponentName, ComponentData, Entity, ComponentDefinition } from './types.js';
 
 export class World {
   /** Next entity ID sequence */

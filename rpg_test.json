@@ -13,41 +13,41 @@
   "world_gen": {
     "width": 40,
     "height": 40,
-    "method": "CAVE",
+    "algorithm": "cellular_automata",
     "spawn_table": [
       { "blueprint": "orc", "weight": 0.1, "max_per_level": 5 }
     ]
   },
   "traits": {
     "Strength": {
-      "path": "CombatStats.strength",
-      "mutation_rate": 0.1,
-      "mutation_range": 2
+      "CombatStats.strength": 2
     },
     "Toughness": {
-      "path": "CombatStats.toughness",
-      "mutation_rate": 0.05,
-      "mutation_range": 1
+      "CombatStats.toughness": 1
     }
   },
   "components": {
     "CombatStats": {
-      "strength": 10,
-      "toughness": 5
+      "strength": "number",
+      "toughness": "number"
     },
     "Health": {
-      "current": 100,
-      "max": 100
+      "current": "number",
+      "max": "number"
     },
     "Faction": {
-      "id": "neutral"
+      "id": "string"
+    },
+    "Glyph": {
+      "char": "string",
+      "color": "string"
     },
     "Equippable": {
-      "slot": "main_hand",
-      "modifiers": {}
+      "slot": "string",
+      "modifiers": "object"
     },
     "Equipment": {
-      "slots": {}
+      "slots": "object"
     }
   },
   "blueprints": {
@@ -71,23 +71,21 @@
     },
     "sword": {
       "Glyph": { "char": "/", "color": "item" },
-      "Equippable": { 
-        "slot": "main_hand", 
-        "modifiers": { "CombatStats.strength": 5 } 
+      "Equippable": {
+        "slot": "main_hand",
+        "modifiers": { "CombatStats.strength": 5 }
       }
     }
   },
-  "systems": [
-    {
-      "name": "Combat",
+  "systems": {
+    "Combat": {
       "listens_for": "ACTION_ATTACK",
-      "bind": { "attacker": "source", "defender": "target" },
-      "requires": "attacker.CombatStats && defender.Health",
+      "context": { "attacker": "source", "defender": "target" },
+      "requires": ["has_component(attacker, 'CombatStats')", "has_component(defender, 'Health')"],
       "effects": [
         {
           "type": "MUTATE",
-          "target": "defender",
-          "path": "Health.current",
+          "target": "defender.Health.current",
           "operation": "SUBTRACT",
           "value": "max(1, attacker.CombatStats.strength * 1.5 - defender.CombatStats.toughness)"
         },
@@ -106,11 +104,10 @@
         }
       ]
     },
-    {
-      "name": "BreedingSystem",
+    "BreedingSystem": {
       "listens_for": "ACTION_MOVE",
-      "bind": { "parentA": "source" },
-      "requires": "parentA.Faction.id == 'player'",
+      "context": { "parentA": "source" },
+      "requires": ["parentA.Faction.id == 'player'"],
       "effects": [
         {
           "type": "BREED_ENTITY",
@@ -121,5 +118,5 @@
         }
       ]
     }
-  ]
+  }
 }

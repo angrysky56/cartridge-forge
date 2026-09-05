@@ -12,7 +12,9 @@ const ComponentFieldSchema = z.union([
   z.literal('number'),
   z.literal('string'),
   z.literal('boolean'),
-  z.string().startsWith('array<'),  // e.g., "array<EntityID>"
+  z.literal('object'),
+  z.string().startsWith('array<'),   // e.g., "array<EntityID>"
+  z.string().startsWith('record<'),  // e.g., "record<string, EntityID>"
 ]);
 
 export const ComponentDefSchema = z.union([

@@ -149,7 +149,7 @@ export function evaluate(
 ): number {
   const rewritten = rewriteExpression(expression, Object.keys(scope));
   try {
-    const result = parser.evaluate(rewritten, scope);
+    const result = parser.evaluate(rewritten, scope as any);
     return typeof result === 'number' ? result : Number(result);
   } catch (err) {
     console.error(`DSL eval error: "${expression}" → "${rewritten}"`, err);
@@ -164,7 +164,7 @@ export function evaluateCondition(
 ): boolean {
   const rewritten = rewriteExpression(expression, Object.keys(scope));
   try {
-    return Boolean(parser.evaluate(rewritten, scope));
+    return Boolean(parser.evaluate(rewritten, scope as any));
   } catch (err) {
     console.error(`DSL condition error: "${expression}" → "${rewritten}"`, err);
     return false; // Safe fallback — don't fire effects on error

@@ -17,8 +17,10 @@ import type { Entity, EntityId } from '../ecs/types.js';
 /** Game state phases */
 export type GamePhase = 'LOADING' | 'PLAYER_TURN' | 'ENEMY_TURN' | 'GAME_OVER';
 
+type InputAction = { dx?: number; dy?: number; rotate?: number };
+
 /** Turn direction mappings */
-const DIRECTIONS: Record<string, { dx: number; dy: number }> = {
+const DIRECTIONS: Record<string, InputAction> = {
   ArrowUp:    { dx: 0,  dy: -1 },
   ArrowDown:  { dx: 0,  dy: 1 },
   ArrowLeft:  { dx: -1, dy: 0 },
@@ -172,12 +174,12 @@ export class Game {
     const pos = player.components.get('Position') as { x: number; y: number; direction?: string };
 
     // Handle rotation
-    if ('rotate' in action) {
+    if (action.rotate !== undefined) {
       const dirs = ['N', 'E', 'S', 'W'];
       const currentIdx = dirs.indexOf(pos.direction || 'N');
       const newIdx = (currentIdx + action.rotate + 4) % 4;
       pos.direction = dirs[newIdx];
-      this.finishTurn();
+      this.finishTurn(player);
       return;
     }
 
@@ -227,7 +229,11 @@ export class Game {
 
     // Flush spawns/destructions from player action
     this.world.flush();
+    this.finishTurn(player);
+  }
 
+  /** Complete turn cycle: enemy actions, status effects, and render */
+  private finishTurn(player: Entity): void {
     // Check if player died
     if (!this.world.getEntity(this.playerId!)) {
       this.phase = 'GAME_OVER';
