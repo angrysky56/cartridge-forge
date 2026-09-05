@@ -60,6 +60,17 @@ export class Game {
   private turnCount = 0;
   private depth = 1;
 
+  // Progression & Stats
+  private level = 1;
+  private xp = 0;
+  private xpToNextLevel = 50;
+  private monstersSlain = 0;
+  private chestsOpened = 0;
+  private secretsFound = 0;
+  private dashCooldown = 0;
+  private bashCooldown = 0;
+  private lastDirection = { dx: 0, dy: -1 };
+
   /** UI callback for combat log messages */
   private logCallback: (msg: string) => void;
   /** UI callback for stats panel updates */
@@ -102,6 +113,15 @@ export class Game {
     this.world.clear();
     this.turnCount = 0;
     this.depth = 1;
+    this.level = 1;
+    this.xp = 0;
+    this.xpToNextLevel = 50;
+    this.monstersSlain = 0;
+    this.chestsOpened = 0;
+    this.secretsFound = 0;
+    this.dashCooldown = 0;
+    this.bashCooldown = 0;
+    this.lastDirection = { dx: 0, dy: -1 };
 
     // Update renderer from cartridge config
     const activeCanvas = (typeof document !== 'undefined' ? document.getElementById('game-canvas') as HTMLCanvasElement : null) || this.canvas;
@@ -128,12 +148,35 @@ export class Game {
     }
     this.world.registerComponentDefinitions(compDefs);
 
-    // Register blueprints (including default stairs if not provided)
+    // Register blueprints (including default stairs, chests, shrines, and boss)
     const blueprints: Record<string, any> = {
       stairs: {
         Renderable: { glyph: '>', color: '#ffd700', layer: 1 },
         Glyph: { char: '>', color: '#ffd700' },
         Description: { name: 'Dungeon Stairs', text: 'Descend to deeper complex' },
+      },
+      chest: {
+        Renderable: { glyph: '=', color: '#ffd700', layer: 1 },
+        Glyph: { char: '=', color: '#ffd700' },
+        Description: { name: 'Treasure Chest', text: 'Contains guaranteed equipment or potions.' },
+      },
+      cracked_wall: {
+        Renderable: { glyph: '?', color: '#aa9977', layer: 1 },
+        Glyph: { char: '?', color: '#aa9977' },
+        Description: { name: 'Cracked Secret Wall', text: 'Brittle masonry hiding a secret.' },
+      },
+      shrine: {
+        Renderable: { glyph: '&', color: '#ff00ea', layer: 1 },
+        Glyph: { char: '&', color: '#ff00ea' },
+        Description: { name: 'Ancient Shrine', text: 'Step to receive ancient blessings.' },
+      },
+      minotaur_boss: {
+        Renderable: { glyph: 'M', color: '#ff0055', layer: 2 },
+        Glyph: { char: 'M', color: '#ff0055' },
+        Health: { current: 180, max: 180 },
+        CombatStats: { strength: 22, armor: 6 },
+        Faction: { id: 'monster' },
+        Description: { name: 'Minotaur Crypt Lord', text: 'The ancient guardian of the labyrinth.' },
       },
       ...cartridge.blueprints,
     };
@@ -168,33 +211,13 @@ export class Game {
       }
     }
 
-    // Spawn stairs if available on this map
-    if (this.map.stairsPosition) {
-      this.world.spawn('stairs', {
-        Position: { x: this.map.stairsPosition.x, y: this.map.stairsPosition.y },
-      });
-    }
-
-    // Spawn enemies from spawn_table
-    if (cartridge.world_gen.spawn_table) {
-      for (const entry of cartridge.world_gen.spawn_table) {
-        const count = entry.max_per_level ?? 5;
-        for (let i = 0; i < count && spawnIdx < available.length; i++) {
-          // Weighted random check
-          if (Math.random() < entry.weight) {
-            const pos = available[spawnIdx++];
-            this.world.spawn(entry.blueprint, {
-              Position: { x: pos.x, y: pos.y },
-            });
-          }
-        }
-      }
-    }
+    // Spawn stairs, chests, shrines, and enemies
+    this.spawnDungeonFeatures(available, spawnIdx);
 
     this.phase = 'PLAYER_TURN';
     this.logCallback(`=== ${cartridge.meta.title.toUpperCase()} ===`);
     this.logCallback(cartridge.meta.description ?? 'A new session begins.');
-    this.logCallback('Move: [WASD] or [Arrows] | Wait: [Space] | Click to Move/Attack');
+    this.logCallback('Move: [WASD] | Wait: [Space] | Dash: [1] | Shield Bash: [2]');
     this.render();
     this.statsCallback(this.world.getEntity(this.playerId!));
   }
@@ -208,6 +231,16 @@ export class Game {
 
     const is3D = this.cartridge?.meta.renderer_mode === 'CELL_PSEUDO_3D' || this.cartridge?.meta.renderer_mode === 'WIREFRAME_3D';
     const pos = player.components.get('Position') as { x: number; y: number; direction?: string };
+
+    // Tactical Abilities
+    if (key === '1') {
+      this.usePhaseDash();
+      return;
+    }
+    if (key === '2') {
+      this.useShieldBash();
+      return;
+    }
 
     // Wait / rest turn
     if (key === ' ' || key === '.' || key === '5') {
@@ -258,9 +291,11 @@ export class Game {
 
   /** Execute a directional action (move, attack, wait) */
   executeAction(action: { dx: number; dy: number }, player: Entity): void {
+    const { dx, dy } = action;
     const pos = player.components.get('Position') as { x: number; y: number; direction?: string };
-    const dx = action.dx;
-    const dy = action.dy;
+    if (dx !== 0 || dy !== 0) {
+      this.lastDirection = { dx, dy };
+    }
 
     if (dx === 0 && dy === 0) {
       this.logCallback('You wait a turn...');
@@ -271,6 +306,22 @@ export class Game {
 
     const targetX = pos.x + dx;
     const targetY = pos.y + dy;
+
+    // Check for cracked secret wall collision
+    const secretWall = this.getEntityAt(targetX, targetY);
+    if (secretWall && (secretWall.id.startsWith('cracked_wall_') || (secretWall.components.get('Description') as any)?.name?.includes('Cracked'))) {
+      this.map.tiles[targetY][targetX] = TileType.Floor;
+      this.world.queueDestroy(secretWall.id);
+      this.world.flush();
+      this.secretsFound++;
+      sound.playHit();
+      this.logCallback('The cracked wall crumbles, revealing a hidden passage!');
+      if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+        (this.renderer as any).addFloatingText(targetX, targetY, 'SECRET FOUND!', '#00ffcc');
+      }
+      this.finishTurn(player);
+      return;
+    }
 
     // Check wall collision
     if (this.map.tiles[targetY]?.[targetX] === TileType.Wall) return;
@@ -283,6 +334,7 @@ export class Game {
     );
 
     if (isAttackable && targetEntity) {
+      targetEntity.tags.add('alerted');
       const targetHealthBefore = (targetEntity.components.get('Health') as { current: number } | undefined)?.current;
 
       // Bump attack — emit ACTION_ATTACK event
@@ -301,6 +353,16 @@ export class Game {
         if (!stillAlive) {
           (this.renderer as any).addFloatingText(targetX, targetY, 'SLAIN!', '#ff0055');
           sound.playDefeat();
+          this.monstersSlain++;
+          const targetDesc = (targetEntity.components.get('Description') as any)?.name || '';
+          const xpGain = targetDesc.includes('Lord') || targetDesc.includes('Boss') || targetDesc.includes('Champion') || targetDesc.includes('Minotaur')
+            ? 150
+            : targetDesc.includes('Orc')
+            ? 50
+            : targetDesc.includes('Skeleton')
+            ? 30
+            : 15;
+          this.addXP(xpGain);
         } else if (targetHealthBefore !== undefined && targetHealthAfter !== undefined && targetHealthBefore > targetHealthAfter) {
           const dmg = targetHealthBefore - targetHealthAfter;
           (this.renderer as any).addFloatingText(targetX, targetY, `-${dmg}`, '#ff3344');
@@ -318,7 +380,7 @@ export class Game {
       this.world.flush();
       sound.playMove();
 
-      // Check for item pickups on this tile
+      // Check for item pickups and interactive entities on this tile
       const itemsOnTile = this.world.allEntities().filter(e => {
         if (e.id === player.id) return false;
         const ePos = e.components.get('Position') as { x: number; y: number } | undefined;
@@ -376,6 +438,44 @@ export class Game {
           }
           this.statsCallback(player);
         }
+
+        // 4. Treasure Chest
+        else if (name.includes('Chest') || item.id.startsWith('chest_')) {
+          this.chestsOpened++;
+          this.world.queueDestroy(item.id);
+          this.world.flush();
+          sound.playItem();
+          if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+            (this.renderer as any).addFloatingText(targetX, targetY, 'CHEST OPENED!', '#ffd700');
+          }
+          const lootList = ['broadsword', 'iron_shield', 'health_potion'];
+          const chosen = lootList[Math.floor(Math.random() * lootList.length)];
+          if (this.cartridge.blueprints[chosen]) {
+            this.world.spawn(chosen, { Position: { x: targetX, y: targetY } });
+          }
+          this.logCallback('You unlocked the Treasure Chest! Gear emerged onto the floor!');
+          continue;
+        }
+
+        // 5. Ancient Shrine
+        else if (name.includes('Shrine') || item.id.startsWith('shrine_')) {
+          const pStats = player.components.get('CombatStats') as Record<string, number> | undefined;
+          const pHealth = player.components.get('Health') as { current: number; max: number } | undefined;
+          if (pStats && pHealth) {
+            pStats.strength = (pStats.strength || 10) + 3;
+            pHealth.max += 15;
+            pHealth.current = pHealth.max;
+          }
+          this.world.queueDestroy(item.id);
+          this.world.flush();
+          sound.playLevelUp();
+          if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+            (this.renderer as any).addFloatingText(targetX, targetY, '+SHRINE BLESSING!', '#00ffaa');
+          }
+          this.logCallback('Ancient blessing received! (+3 Strength, +15 Max HP, Full Health)!');
+          this.statsCallback(player);
+          continue;
+        }
       }
       this.world.flush();
     }
@@ -406,6 +506,10 @@ export class Game {
 
   /** Complete turn cycle: enemy actions, status effects, and render */
   private finishTurn(player: Entity): void {
+    // Decrement ability cooldowns
+    if (this.dashCooldown > 0) this.dashCooldown--;
+    if (this.bashCooldown > 0) this.bashCooldown--;
+
     // Check if player died
     if (!this.world.getEntity(this.playerId!)) {
       this.phase = 'GAME_OVER';
@@ -449,7 +553,7 @@ export class Game {
     this.statsCallback(this.world.getEntity(this.playerId!));
   }
 
-  /** Simple enemy AI — move toward player and bump attack */
+  /** Sensory Enemy AI — only alert and pursue if within sensory range or damaged */
   private processEnemyTurns(player: Entity): void {
     const playerPos = player.components.get('Position') as { x: number; y: number };
     const enemies = this.world.allEntities().filter(e => {
@@ -461,16 +565,32 @@ export class Game {
       // Emit TURN_START for per-entity turn effects
       this.executor.emit({ name: 'TURN_START', source: enemy });
 
-      // Skip if stunned
-      if (enemy.tags.has('stunned')) continue;
+      // If stunned, consume stun effect and skip turn
+      if (enemy.tags.has('stunned')) {
+        enemy.tags.delete('stunned');
+        const ePos = enemy.components.get('Position') as { x: number; y: number };
+        if (this.renderer && 'addFloatingText' in (this.renderer as any)) {
+          (this.renderer as any).addFloatingText(ePos.x, ePos.y, 'STUNNED', '#ffaa00');
+        }
+        continue;
+      }
 
       const ePos = enemy.components.get('Position') as { x: number; y: number };
+      const adx = Math.abs(playerPos.x - ePos.x);
+      const ady = Math.abs(playerPos.y - ePos.y);
+      const chebyshevDist = Math.max(adx, ady);
+
+      // Sensory AI: Only alert if within 7 tiles or already alerted by combat/damage
+      if (chebyshevDist > 7 && !enemy.tags.has('alerted')) {
+        // Dormant/Idle: distant enemies do not swarm corridors across the entire map
+        continue;
+      }
+      enemy.tags.add('alerted');
+
       const dx = Math.sign(playerPos.x - ePos.x);
       const dy = Math.sign(playerPos.y - ePos.y);
 
       // Try to move toward player (prefer axis with larger distance)
-      const adx = Math.abs(playerPos.x - ePos.x);
-      const ady = Math.abs(playerPos.y - ePos.y);
       const moves = adx >= ady
         ? [{ dx, dy: 0 }, { dx: 0, dy }]
         : [{ dx: 0, dy }, { dx, dy: 0 }];
@@ -545,6 +665,235 @@ export class Game {
     }
   }
 
+  /** Spawn stairs, chests, shrines, secrets, and monsters for current floor */
+  private spawnDungeonFeatures(available: { x: number; y: number }[], spawnIdx: number): void {
+    // 1. Spawn stairs for this floor
+    if (this.map.stairsPosition) {
+      this.world.spawn('stairs', {
+        Position: { x: this.map.stairsPosition.x, y: this.map.stairsPosition.y },
+      });
+    }
+
+    // 2. Spawn 2 guaranteed Treasure Chests on floor tiles
+    for (let i = 0; i < 2 && spawnIdx < available.length; i++) {
+      const pos = available[spawnIdx++];
+      this.world.spawn('chest', { Position: { x: pos.x, y: pos.y } });
+    }
+
+    // 3. Spawn 1 Ancient Shrine
+    if (spawnIdx < available.length) {
+      const pos = available[spawnIdx++];
+      this.world.spawn('shrine', { Position: { x: pos.x, y: pos.y } });
+    }
+
+    // 4. Spawn 1 Secret Wall (place cracked_wall on a wall adjacent to an accessible floor tile)
+    let secretPlaced = false;
+    for (const floorTile of available) {
+      const neighbors = [
+        { x: floorTile.x + 1, y: floorTile.y },
+        { x: floorTile.x - 1, y: floorTile.y },
+        { x: floorTile.x, y: floorTile.y + 1 },
+        { x: floorTile.x, y: floorTile.y - 1 },
+      ];
+      for (const n of neighbors) {
+        if (this.map.tiles[n.y]?.[n.x] === TileType.Wall && !this.getEntityAt(n.x, n.y)) {
+          this.world.spawn('cracked_wall', { Position: { x: n.x, y: n.y } });
+          secretPlaced = true;
+          break;
+        }
+      }
+      if (secretPlaced) break;
+    }
+
+    // 5. Boss Spawn on Depth 3 (Minotaur Crypt Lord)
+    if (this.depth === 3 && spawnIdx < available.length) {
+      const pos = available[spawnIdx++];
+      this.world.spawn('minotaur_boss', { Position: { x: pos.x, y: pos.y } });
+      this.logCallback('WARNING: The ground quakes... Minotaur Crypt Lord has awakened!');
+    }
+
+    // 6. Spawn enemies from spawn_table (with depth scaling)
+    if (this.cartridge?.world_gen.spawn_table) {
+      for (const entry of this.cartridge.world_gen.spawn_table) {
+        const count = entry.max_per_level ?? 5;
+        for (let i = 0; i < count && spawnIdx < available.length; i++) {
+          if (Math.random() < entry.weight) {
+            const pos = available[spawnIdx++];
+            const enemy = this.world.spawn(entry.blueprint, {
+              Position: { x: pos.x, y: pos.y },
+            });
+            const eHealth = enemy.components.get('Health') as { current: number; max: number } | undefined;
+            if (eHealth && this.depth > 1) {
+              const bonus = (this.depth - 1) * 5;
+              eHealth.max += bonus;
+              eHealth.current += bonus;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /** Tactical Ability 1: Phase Dash 2 tiles forward, skipping over intervening hazards/enemies */
+  usePhaseDash(): boolean {
+    if (this.phase !== 'PLAYER_TURN') return false;
+    const player = this.getPlayer();
+    if (!player) return false;
+
+    if (this.dashCooldown > 0) {
+      this.logCallback(`Phase Dash recharging (${this.dashCooldown} turn${this.dashCooldown > 1 ? 's' : ''} left)!`);
+      sound.playHit();
+      return false;
+    }
+
+    const pos = player.components.get('Position') as { x: number; y: number };
+    const dx = this.lastDirection.dx !== 0 || this.lastDirection.dy !== 0 ? this.lastDirection.dx : 0;
+    const dy = this.lastDirection.dx !== 0 || this.lastDirection.dy !== 0 ? this.lastDirection.dy : 1;
+
+    // Check 2 tiles ahead, or fallback to 1 tile ahead
+    let targetX = pos.x + dx * 2;
+    let targetY = pos.y + dy * 2;
+
+    if (this.map.tiles[targetY]?.[targetX] !== TileType.Floor || this.getEntityAt(targetX, targetY)) {
+      targetX = pos.x + dx;
+      targetY = pos.y + dy;
+    }
+
+    if (this.map.tiles[targetY]?.[targetX] !== TileType.Floor || this.getEntityAt(targetX, targetY)) {
+      this.logCallback('Phase Dash blocked by obstacle or creature!');
+      sound.playHit();
+      return false;
+    }
+
+    pos.x = targetX;
+    pos.y = targetY;
+    this.dashCooldown = 6;
+    sound.playAbility();
+    this.addFloatingText(targetX, targetY, 'PHASE DASH!', '#00f0ff');
+    this.logCallback('You warp through space, escaping danger!');
+    this.finishTurn(player);
+    return true;
+  }
+
+  /** Tactical Ability 2: Shield Bash knockback & stun */
+  useShieldBash(): boolean {
+    if (this.phase !== 'PLAYER_TURN') return false;
+    const player = this.getPlayer();
+    if (!player) return false;
+
+    if (this.bashCooldown > 0) {
+      this.logCallback(`Shield Bash recharging (${this.bashCooldown} turn${this.bashCooldown > 1 ? 's' : ''} left)!`);
+      sound.playHit();
+      return false;
+    }
+
+    const pos = player.components.get('Position') as { x: number; y: number };
+    const candidates = [
+      { dx: this.lastDirection.dx, dy: this.lastDirection.dy },
+      { dx: 0, dy: -1 },
+      { dx: 0, dy: 1 },
+      { dx: -1, dy: 0 },
+      { dx: 1, dy: 0 },
+    ];
+
+    let targetEnemy: Entity | undefined;
+    let bashDir = { dx: 0, dy: 1 };
+
+    for (const c of candidates) {
+      if (c.dx === 0 && c.dy === 0) continue;
+      const ent = this.getEntityAt(pos.x + c.dx, pos.y + c.dy, player.id);
+      if (ent && ent.components.has('Health') && (
+        (ent.components.has('Faction') && (ent.components.get('Faction') as any).id !== 'player') ||
+        ent.components.has('CombatStats')
+      )) {
+        targetEnemy = ent;
+        bashDir = c;
+        break;
+      }
+    }
+
+    if (!targetEnemy) {
+      this.logCallback('No adjacent enemy to Shield Bash!');
+      sound.playHit();
+      return false;
+    }
+
+    const ePos = targetEnemy.components.get('Position') as { x: number; y: number };
+    const pStats = player.components.get('CombatStats') as Record<string, number> | undefined;
+    const pStr = pStats?.strength || 10;
+    const eHealth = targetEnemy.components.get('Health') as { current: number; max: number };
+
+    // Knockback 1 tile if destination floor tile is walkable & empty
+    const knockX = ePos.x + bashDir.dx;
+    const knockY = ePos.y + bashDir.dy;
+    if (this.map.tiles[knockY]?.[knockX] === TileType.Floor && !this.getEntityAt(knockX, knockY)) {
+      ePos.x = knockX;
+      ePos.y = knockY;
+    }
+
+    // Damage & Stun
+    const bashDamage = Math.floor(pStr * 0.8) + 4;
+    eHealth.current -= bashDamage;
+    targetEnemy.tags.add('stunned');
+    targetEnemy.tags.add('alerted');
+
+    this.bashCooldown = 4;
+    sound.playAbility();
+
+    const desc = (targetEnemy.components.get('Description') as any)?.name || 'Enemy';
+    if (eHealth.current <= 0) {
+      this.world.queueDestroy(targetEnemy.id);
+      this.world.flush();
+      sound.playDefeat();
+      this.addFloatingText(ePos.x, ePos.y, 'BASH CRUSHED!', '#ff0055');
+      this.logCallback(`Shield Bash shattered ${desc}!`);
+      this.monstersSlain++;
+      this.addXP(40);
+    } else {
+      this.addFloatingText(ePos.x, ePos.y, `BASH -${bashDamage} (STUNNED)`, '#ffaa00');
+      this.logCallback(`You slam your shield into ${desc} for ${bashDamage} dmg! It is stunned!`);
+    }
+
+    this.finishTurn(player);
+    return true;
+  }
+
+  /** Add experience and handle level-up progression */
+  addXP(amount: number): void {
+    const player = this.getPlayer();
+    if (!player) return;
+
+    this.xp += amount;
+    this.logCallback(`+${amount} XP (${this.xp}/${this.xpToNextLevel})`);
+
+    while (this.xp >= this.xpToNextLevel) {
+      this.xp -= this.xpToNextLevel;
+      this.level++;
+      this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.6);
+
+      const pHealth = player.components.get('Health') as { current: number; max: number } | undefined;
+      const pStats = player.components.get('CombatStats') as Record<string, number> | undefined;
+
+      if (pHealth) {
+        pHealth.max += 12;
+        pHealth.current = pHealth.max; // Full heal upon level up!
+      }
+      if (pStats) {
+        pStats.strength = (pStats.strength || 10) + 2;
+        pStats.armor = (pStats.armor || 0) + 1;
+      }
+
+      sound.playLevelUp();
+      const pos = player.components.get('Position') as { x: number; y: number } | undefined;
+      if (pos) {
+        this.addFloatingText(pos.x, pos.y, `LEVEL UP! (LVL ${this.level})`, '#ffd700');
+      }
+      this.logCallback(`=== LEVEL UP! Reached Level ${this.level}! (+12 Max HP, +2 STR, +1 DEF, Health Fully Restored!) ===`);
+    }
+
+    this.statsCallback(player);
+  }
+
   /** Descend to next dungeon depth */
   descendFloor(): void {
     this.depth++;
@@ -579,33 +928,8 @@ export class Game {
       player.components.set('Position', { x: pPos.x, y: pPos.y });
     }
 
-    // Spawn stairs for this floor
-    if (this.map.stairsPosition) {
-      this.world.spawn('stairs', {
-        Position: { x: this.map.stairsPosition.x, y: this.map.stairsPosition.y },
-      });
-    }
-
-    // Spawn enemies from spawn_table (with depth scaling)
-    if (this.cartridge.world_gen.spawn_table) {
-      for (const entry of this.cartridge.world_gen.spawn_table) {
-        const count = entry.max_per_level ?? 5;
-        for (let i = 0; i < count && spawnIdx < available.length; i++) {
-          if (Math.random() < entry.weight) {
-            const pos = available[spawnIdx++];
-            const enemy = this.world.spawn(entry.blueprint, {
-              Position: { x: pos.x, y: pos.y },
-            });
-            const eHealth = enemy.components.get('Health') as { current: number; max: number } | undefined;
-            if (eHealth && this.depth > 1) {
-              const bonus = (this.depth - 1) * 5;
-              eHealth.max += bonus;
-              eHealth.current += bonus;
-            }
-          }
-        }
-      }
-    }
+    // Spawn stairs, chests, shrines, secrets, and monsters
+    this.spawnDungeonFeatures(available, spawnIdx);
 
     this.logCallback(`=== DESCENDED TO DEPTH ${this.depth} ===`);
     this.logCallback(`Air grows colder. Deeper threats lurk in the shadows.`);
@@ -615,6 +939,19 @@ export class Game {
   }
 
   getDepth(): number { return this.depth; }
+  getLevel(): number { return this.level; }
+  getXP(): { current: number; next: number } { return { current: this.xp, next: this.xpToNextLevel }; }
+  getCooldowns(): { dash: number; bash: number } { return { dash: this.dashCooldown, bash: this.bashCooldown }; }
+  getStatsSummary(): { monstersSlain: number; chestsOpened: number; secretsFound: number; depth: number; level: number; turnCount: number } {
+    return {
+      monstersSlain: this.monstersSlain,
+      chestsOpened: this.chestsOpened,
+      secretsFound: this.secretsFound,
+      depth: this.depth,
+      level: this.level,
+      turnCount: this.turnCount,
+    };
+  }
   getInventoryService(): InventoryService { return this.inventory; }
 
   equipItem(slot: string, item: Entity): void {

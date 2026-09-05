@@ -304,6 +304,79 @@ select.cyber-select:hover, select.cyber-select:focus {
   background: linear-gradient(90deg, #0088ff, #00f0ff);
 }
 
+.meter-fill.xp {
+  background: linear-gradient(90deg, #ff9900, #ffea00);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+/* Tactical Abilities */
+.tactical-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tactical-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(14, 18, 28, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.tactical-btn:hover:not(:disabled) {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--cyan-glow);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.3);
+}
+
+.tactical-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.tactical-icon {
+  font-size: 20px;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tactical-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.tactical-name {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.tactical-status {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.tactical-status.ready {
+  color: var(--green-glow);
+  text-shadow: 0 0 8px rgba(0, 255, 170, 0.4);
+}
+
+.tactical-status.cooldown {
+  color: #ffaa00;
+}
+
 .stats-matrix {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -873,5 +946,80 @@ select.cyber-select:hover, select.cyber-select:focus {
 .cyber-btn.primary-flash:hover {
   background: linear-gradient(135deg, #33ffdd, #22aaff);
   box-shadow: 0 0 20px rgba(0, 255, 204, 0.7);
+}
+
+/* Run Summary & Memorial Modal */
+.memorial-dialog {
+  max-width: 540px;
+  border-color: rgba(255, 0, 85, 0.4);
+  box-shadow: 0 0 30px rgba(255, 0, 85, 0.25), inset 0 0 20px rgba(255, 0, 85, 0.05);
+}
+
+.memorial-hero {
+  text-align: center;
+  padding: 16px 0 24px;
+}
+
+.memorial-tombstone {
+  font-size: 52px;
+  color: #ff0055;
+  text-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+  margin-bottom: 8px;
+}
+
+.memorial-heading {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffffff;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.memorial-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 380px;
+  margin: 0 auto;
+  line-height: 1.4;
+}
+
+.memorial-matrix {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: rgba(8, 10, 16, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.memorial-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.mem-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.mem-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.mem-val.highlight {
+  color: #ffaa00;
+  text-shadow: 0 0 10px rgba(255, 170, 0, 0.4);
 }
 

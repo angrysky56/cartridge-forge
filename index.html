@@ -78,10 +78,28 @@
           </div>
         </div>
 
+        <div class="meter-group">
+          <div class="meter-header">
+            <span>OPERATOR LEVEL & XP</span>
+            <span id="xp-text" class="meter-val">LVL 1 (0 / 50 XP)</span>
+          </div>
+          <div class="meter-bar">
+            <div id="xp-bar" class="meter-fill xp" style="width: 0%;"></div>
+          </div>
+        </div>
+
         <div class="stats-matrix">
+          <div class="stat-cell">
+            <div class="stat-label">LEVEL</div>
+            <div id="stat-lvl" class="stat-value">1</div>
+          </div>
           <div class="stat-cell">
             <div class="stat-label">STRENGTH</div>
             <div id="stat-str" class="stat-value">12</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">DUNGEON FLOOR</div>
+            <div id="stat-floor" class="stat-value" style="color: #ffb300;">B1</div>
           </div>
           <div class="stat-cell">
             <div class="stat-label">COORDINATES</div>
@@ -111,6 +129,30 @@
               <span class="slot-value" id="slot-val-off_hand">None</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Tactical Abilities Panel -->
+      <section class="hud-panel">
+        <div class="panel-title">
+          <span>TACTICAL ABILITIES</span>
+          <span class="system-badge highlight">HOTKEYS</span>
+        </div>
+        <div class="tactical-grid">
+          <button id="btn-ability-dash" class="cyber-btn tactical-btn" title="Phase Dash 2 tiles forward (Key 1)">
+            <span class="tactical-icon">⚡</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[1] PHASE DASH</span>
+              <span id="dash-cooldown-text" class="tactical-status ready">READY</span>
+            </div>
+          </button>
+          <button id="btn-ability-bash" class="cyber-btn tactical-btn" title="Shield Bash adjacent enemy: Stun & Knockback (Key 2)">
+            <span class="tactical-icon">🛡</span>
+            <div class="tactical-info">
+              <span class="tactical-name">[2] SHIELD BASH</span>
+              <span id="bash-cooldown-text" class="tactical-status ready">READY</span>
+            </div>
+          </button>
         </div>
       </section>
 
@@ -147,6 +189,14 @@
           <div class="keymap-item">
             <span>Wait / Pass Turn:</span>
             <span class="kbd-badge">Space / .</span>
+          </div>
+          <div class="keymap-item">
+            <span>Phase Dash (Jump):</span>
+            <span class="kbd-badge">[1]</span>
+          </div>
+          <div class="keymap-item">
+            <span>Shield Bash (Stun):</span>
+            <span class="kbd-badge">[2]</span>
           </div>
           <div class="keymap-item">
             <span>Click Adjacent:</span>
@@ -251,6 +301,54 @@
       <div class="modal-footer">
         <button id="btn-validate-studio" class="cyber-btn" title="Validate JSON syntax and schema">🔍 Validate JSON</button>
         <button id="btn-flash-studio" class="cyber-btn primary-flash" title="Flash Cartridge to Virtual Console">🚀 Flash & Play</button>
+      </div>
+    </div>
+  <!-- Run Summary & Memorial Modal -->
+  <div id="memorial-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog memorial-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="power-led" style="box-shadow: 0 0 10px #ff0055; background: #ff0055;"></div>
+          <span id="memorial-title">CHRONICLE OF THE DEFEATED</span>
+          <span class="system-badge danger">RUN TERMINATED</span>
+        </div>
+        <button id="btn-close-memorial" class="modal-close-btn" title="Close Memorial">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="memorial-hero">
+          <div class="memorial-tombstone">☠</div>
+          <h2 id="memorial-hero-name" class="memorial-heading">FALLEN OPERATOR</h2>
+          <p id="memorial-epitaph" class="memorial-sub">Surrounded in the subterranean halls, your journey came to an end.</p>
+        </div>
+        <div class="memorial-matrix">
+          <div class="memorial-cell">
+            <span class="mem-label">DEPTH REACHED</span>
+            <span id="mem-depth" class="mem-val highlight">B1</span>
+          </div>
+          <div class="memorial-cell">
+            <span class="mem-label">FINAL LEVEL</span>
+            <span id="mem-level" class="mem-val">LVL 1</span>
+          </div>
+          <div class="memorial-cell">
+            <span class="mem-label">MONSTERS SLAIN</span>
+            <span id="mem-slain" class="mem-val">0</span>
+          </div>
+          <div class="memorial-cell">
+            <span class="mem-label">CHESTS OPENED</span>
+            <span id="mem-chests" class="mem-val">0</span>
+          </div>
+          <div class="memorial-cell">
+            <span class="mem-label">SECRETS FOUND</span>
+            <span id="mem-secrets" class="mem-val">0</span>
+          </div>
+          <div class="memorial-cell">
+            <span class="mem-label">TURNS SURVIVED</span>
+            <span id="mem-turns" class="mem-val">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button id="btn-restart-memorial" class="cyber-btn primary-flash" style="min-width: 200px; font-size: 13px;" title="Embark on a fresh descent">⚔ DESCEND AGAIN</button>
       </div>
     </div>
   </div>

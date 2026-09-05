@@ -43,6 +43,28 @@ const armorBarEl = document.getElementById('armor-bar') as HTMLElement;
 const statStrEl = document.getElementById('stat-str') as HTMLElement;
 const statPosEl = document.getElementById('stat-pos') as HTMLElement;
 
+// Progression & Tactical DOM Elements
+const xpTextEl = document.getElementById('xp-text') as HTMLElement | null;
+const xpBarEl = document.getElementById('xp-bar') as HTMLElement | null;
+const statLvlEl = document.getElementById('stat-lvl') as HTMLElement | null;
+const statFloorEl = document.getElementById('stat-floor') as HTMLElement | null;
+
+const btnAbilityDash = document.getElementById('btn-ability-dash') as HTMLButtonElement | null;
+const btnAbilityBash = document.getElementById('btn-ability-bash') as HTMLButtonElement | null;
+const dashCooldownText = document.getElementById('dash-cooldown-text') as HTMLElement | null;
+const bashCooldownText = document.getElementById('bash-cooldown-text') as HTMLElement | null;
+
+// Memorial Modal Elements
+const memorialModal = document.getElementById('memorial-modal') as HTMLElement | null;
+const btnCloseMemorial = document.getElementById('btn-close-memorial') as HTMLButtonElement | null;
+const btnRestartMemorial = document.getElementById('btn-restart-memorial') as HTMLButtonElement | null;
+const memDepthEl = document.getElementById('mem-depth') as HTMLElement | null;
+const memLevelEl = document.getElementById('mem-level') as HTMLElement | null;
+const memSlainEl = document.getElementById('mem-slain') as HTMLElement | null;
+const memChestsEl = document.getElementById('mem-chests') as HTMLElement | null;
+const memSecretsEl = document.getElementById('mem-secrets') as HTMLElement | null;
+const memTurnsEl = document.getElementById('mem-turns') as HTMLElement | null;
+
 // Equipment Slots
 const slotMainHandEl = document.getElementById('slot-val-main_hand') as HTMLElement;
 const slotOffHandEl = document.getElementById('slot-val-off_hand') as HTMLElement;
@@ -187,6 +209,42 @@ function updateStats(player: Entity | undefined): void {
     }
   }
 
+  // Progression: Level & XP
+  const lvl = game.getLevel();
+  const xp = game.getXP();
+  if (xpTextEl && xpBarEl) {
+    xpTextEl.textContent = `LVL ${lvl} (${xp.current} / ${xp.next} XP)`;
+    const xpPct = Math.min(100, Math.round((xp.current / xp.next) * 100));
+    xpBarEl.style.width = `${xpPct}%`;
+  }
+  if (statLvlEl) statLvlEl.textContent = String(lvl);
+  if (statFloorEl) statFloorEl.textContent = `B${game.getDepth()}`;
+
+  // Tactical Ability Cooldowns
+  const cooldowns = game.getCooldowns();
+  if (btnAbilityDash && dashCooldownText) {
+    if (cooldowns.dash > 0) {
+      dashCooldownText.textContent = `${cooldowns.dash} TURNS`;
+      dashCooldownText.className = 'tactical-status cooldown';
+      btnAbilityDash.disabled = true;
+    } else {
+      dashCooldownText.textContent = 'READY';
+      dashCooldownText.className = 'tactical-status ready';
+      btnAbilityDash.disabled = false;
+    }
+  }
+  if (btnAbilityBash && bashCooldownText) {
+    if (cooldowns.bash > 0) {
+      bashCooldownText.textContent = `${cooldowns.bash} TURNS`;
+      bashCooldownText.className = 'tactical-status cooldown';
+      btnAbilityBash.disabled = true;
+    } else {
+      bashCooldownText.textContent = 'READY';
+      bashCooldownText.className = 'tactical-status ready';
+      btnAbilityBash.disabled = false;
+    }
+  }
+
   // Coordinates
   if (pos) {
     statPosEl.textContent = `${pos.x}, ${pos.y}`;
@@ -194,6 +252,11 @@ function updateStats(player: Entity | undefined): void {
 
   // Turn count
   turnCounterEl.textContent = String(game.getTurnCount());
+
+  // Check Game Over and Show Memorial
+  if (game.getPhase() === 'GAME_OVER') {
+    showMemorialModal();
+  }
 }
 
 // --- Initialize Game Instance ---
@@ -551,6 +614,55 @@ btnFlashStudio.addEventListener('click', () => {
     logMessage(`🚀 FLASHED & LOADED AI CARTRIDGE: "${c.meta.title}"`);
   }
 });
+
+// --- Tactical Abilities Button Wiring ---
+if (btnAbilityDash) {
+  btnAbilityDash.addEventListener('click', () => {
+    game.usePhaseDash();
+  });
+}
+
+if (btnAbilityBash) {
+  btnAbilityBash.addEventListener('click', () => {
+    game.useShieldBash();
+  });
+}
+
+// --- Memorial Modal Wiring ---
+function showMemorialModal(): void {
+  if (!memorialModal) return;
+  const summary = game.getStatsSummary();
+  if (memDepthEl) memDepthEl.textContent = `B${summary.depth}`;
+  if (memLevelEl) memLevelEl.textContent = `LVL ${summary.level}`;
+  if (memSlainEl) memSlainEl.textContent = String(summary.monstersSlain);
+  if (memChestsEl) memChestsEl.textContent = String(summary.chestsOpened);
+  if (memSecretsEl) memSecretsEl.textContent = String(summary.secretsFound);
+  if (memTurnsEl) memTurnsEl.textContent = String(summary.turnCount);
+  memorialModal.style.display = 'flex';
+}
+
+if (btnCloseMemorial && memorialModal) {
+  btnCloseMemorial.addEventListener('click', () => {
+    memorialModal.style.display = 'none';
+  });
+}
+
+if (btnRestartMemorial && memorialModal) {
+  btnRestartMemorial.addEventListener('click', () => {
+    memorialModal.style.display = 'none';
+    game.restart();
+    sound.playItem();
+    logMessage('--- EMBARKING ON A FRESH DESCENT ---');
+  });
+}
+
+if (memorialModal) {
+  memorialModal.addEventListener('click', (e) => {
+    if (e.target === memorialModal) {
+      memorialModal.style.display = 'none';
+    }
+  });
+}
 
 // --- Continuous Animation Loop for Floating Damage Numbers ---
 function animationLoop(): void {

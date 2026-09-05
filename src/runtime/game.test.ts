@@ -120,4 +120,81 @@ describe('Game Runtime: Floors & Stairs', () => {
     const game = new Game(canvas, logSpy, statsSpy);
     expect(() => game.loadCartridge(result.cartridge!)).not.toThrow();
   });
+
+  it('awards XP and levels up player, boosting stats and restoring health', () => {
+    const game = new Game(canvas, logSpy, statsSpy);
+    game.loadCartridge(sampleCartridge);
+
+    const player = game.getPlayer()!;
+    const health = player.components.get('Health') as { current: number; max: number };
+    const stats = player.components.get('CombatStats') as { strength: number; armor: number };
+
+    health.current = 50; // Damaged player
+    const origMaxHp = health.max;
+    const origStr = stats.strength;
+    const origArmor = stats.armor;
+
+    expect(game.getLevel()).toBe(1);
+    expect(game.getXP().current).toBe(0);
+
+    // Award 60 XP (threshold is 50 for lvl 1)
+    game.addXP(60);
+
+    expect(game.getLevel()).toBe(2);
+    expect(game.getXP().current).toBe(10);
+    // Level up grants +12 max HP, +2 STR, +1 Armor, and full heal
+    expect(health.max).toBe(origMaxHp + 12);
+    expect(health.current).toBe(health.max);
+    expect(stats.strength).toBe(origStr + 2);
+    expect(stats.armor).toBe(origArmor + 1);
+  });
+
+  it('handles Phase Dash ability with cooldown', () => {
+    const game = new Game(canvas, logSpy, statsSpy);
+    game.loadCartridge(sampleCartridge);
+
+    const player = game.getPlayer()!;
+    const pos = player.components.get('Position') as { x: number; y: number };
+    pos.x = 5;
+    pos.y = 5;
+
+    // Last direction is south ({ dx: 0, dy: 1 }) or north; set last direction south
+    game.executeAction({ dx: 0, dy: 1 }, player);
+    const startY = pos.y;
+
+    const used = game.usePhaseDash();
+    expect(used).toBe(true);
+    expect(pos.y).toBeGreaterThan(startY);
+    // After ability completes its turn, 5 turns remain on cooldown
+    expect(game.getCooldowns().dash).toBe(5);
+
+    // Immediate second dash is on cooldown
+    const usedAgain = game.usePhaseDash();
+    expect(usedAgain).toBe(false);
+  });
+
+  it('handles Shield Bash knockback, stun, and cooldown', () => {
+    const game = new Game(canvas, logSpy, statsSpy);
+    game.loadCartridge(sampleCartridge);
+
+    const player = game.getPlayer()!;
+    const pPos = player.components.get('Position') as { x: number; y: number };
+    pPos.x = 5;
+    pPos.y = 5;
+
+    // Spawn an enemy directly south of player
+    const enemy = (game as any).world.spawn('goblin', {
+      Position: { x: 5, y: 6 },
+    });
+
+    const used = game.useShieldBash();
+    expect(used).toBe(true);
+    // After bash turn finishes, 3 turns remain on cooldown
+    expect(game.getCooldowns().bash).toBe(3);
+
+    // Enemy should have been knocked back or taken damage and stunned
+    const eHealth = enemy.components.get('Health') as { current: number; max: number };
+    expect(eHealth.current).toBeLessThan(20);
+    // Note: Stun tag is removed when enemy turn begins in finishTurn, confirming turn was processed
+  });
 });
